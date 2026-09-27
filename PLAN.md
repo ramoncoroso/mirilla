@@ -3,7 +3,8 @@
 > Hoja de ruta del proyecto. Las casillas marcan lo hecho.
 
 **Fecha:** 2026-09-27
-**Estado:** Fases 1, 1.5 y 2 hechas; Fase 3 preparada → falta subir a las tiendas (lo hace el usuario con sus cuentas)
+**Estado:** Fases 1, 1.5 y 2 hechas; revisión de seguridad y buenas prácticas hecha; Fase 3 preparada (paquetes 1.0.0
+regenerados tras la revisión) → falta la comprobación manual y subir a las tiendas (lo hace el usuario con sus cuentas)
 
 ## Posicionamiento
 
@@ -90,7 +91,9 @@ Dos revisiones independientes (seguridad y calidad). Sin hallazgos críticos ni 
 - [x] Firefox para Android ya no rompe el background; `npm test` en verde; GS1 Digital Link sin falsos positivos;
   longitudes y decimales GS1 validados; más dígitos de control; UPC-E expandido; accesibilidad (foco, `aria-live`,
   contraste AA); historial serializado en una cola
-- [x] Pruebas: 60 unitarias, 27 en Chromium (5 de seguridad nuevas), 9 en Firefox
+- [x] Un enlace con caracteres invisibles (bidi) también se trata como peligroso («Open anyway»), encontrado al revisar
+  capturas del plugin en marcha
+- [x] Pruebas: 60 unitarias, 28 en Chromium (6 de seguridad nuevas, que fallaban antes de corregir), 9 en Firefox
 
 **Comprobación manual antes de publicar cada versión** (con la build publicable `.output/`, no la E2E: las pruebas
 automáticas usan `<all_urls>` y no pueden pulsar menús ni atajos):
