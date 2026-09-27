@@ -4,7 +4,7 @@
 
 **Fecha:** 2026-09-27
 **Estado:** Fases 1, 1.5 y 2 hechas; revisión de seguridad hecha; Fase 3 preparada (paquetes 1.0.0; falta la
-comprobación manual y subir a las tiendas, cosa del usuario). **Siguiente: Fase 4** (paridad con el mercado), empezando por 4.1
+comprobación manual y subir a las tiendas, cosa del usuario). **Siguiente: Fase 4**, empezando por 4.0 (sistema de avisos)
 
 ## Posicionamiento
 
@@ -113,7 +113,51 @@ detección automática en todas las páginas (exige acceso a todas las webs) y Q
 el momento con el aviso del propio navegador); textos en `locales/messages.ts`; lógica pura con tests unitarios y cada
 función con prueba en Chromium y, si aplica, en Firefox; y revisión de seguridad de lo nuevo al final.
 
-**Orden** (cada hito se cierra con tests en verde, commit y push):
+**Orden** (cada hito se cierra con tests en verde, commit y push). Empieza por 4.0, el sistema de avisos:
+
+#### 4.0 Sistema de avisos: detectar más y avisar mejor — tamaño L (**primero**: es el núcleo de Mirilla)
+Decidido por el usuario (2026-09-27). Todo en local: nada se consulta a servicios externos.
+
+**Detectar más engaños**
+- [ ] **Suplantación de marcas**: lista local curada de las marcas más suplantadas con sus dominios oficiales (bancos,
+  PayPal, Amazon, Apple, Microsoft, Google, Netflix, DHL, Correos, SEUR, AEAT/Hacienda, DGT, Seguridad Social…),
+  elegidas a partir de los informes de marcas más suplantadas (Check Point, APWG) y de los avisos de INCIBE/OSI.
+  Si la URL menciona la marca (subdominio, dominio o ruta) y su dominio no es el oficial → Peligro:
+  «Parece PayPal, pero no es paypal.com».
+- [ ] **Imitaciones de dominio** (typosquatting): distancia de edición con los dominios oficiales y sustituciones
+  típicas (`rn`→`m`, `0`→`o`, `1`→`l`, `vv`→`w`).
+- [ ] **Homógrafos**: «esqueleto» de Unicode (UTS #39) con `confusables.txt` (Unicode License v3; tabla reducida
+  generada al compilar e incluida con su aviso de licencia), para detectar mezclas de alfabetos que imitan a otro dominio.
+- [ ] **Enlaces escondidos en cualquier contenido**: extraer y analizar las URLs de textos («Paga aquí: https://…»),
+  cuerpos de SMS (smishing) y email, webs de contactos vCard, etc. Hoy solo se analiza si el código entero es una URL.
+- [ ] **Por tipo de contenido**:
+  - descargas de programas o instaladores (`.apk`, `.exe`, `.msi`, `.dmg`, `.scr`, `.bat`…; lista basada en la de
+    tipos de fichero peligrosos de Chromium, BSD) y esquemas que instalan apps (`itms-services://`, `intent://`) → Peligro;
+  - teléfonos con códigos USSD (`*`, `#`) → Peligro; números de tarificación especial (803, 806, 807, 905… en España;
+    rangos equivalentes de otros países si hay fuente fiable) → Precaución;
+  - WiFi abierta o con WEP → Precaución;
+  - TLD que se confunden con ficheros (`.zip`, `.mov`) → Precaución.
+
+**Avisar mejor**
+- [ ] **Veredicto único** arriba de cada resultado: ✅ Sin problemas detectados / ⚠️ Precaución / ⛔ Peligro, con los
+  detalles debajo (los informativos, plegados). Evita la fatiga de avisos.
+- [ ] **Puntuación combinada**: señales leves que coinciden (plataforma compartida + palabras de phishing + redirección)
+  suben el veredicto. Umbrales ajustados con las mediciones de abajo.
+- [ ] **Fricción proporcional**: sin riesgo → «Abrir»; Precaución → botón secundario; Peligro → «Abrir de todos modos»
+  con segunda confirmación y «Copiar el enlace» como alternativa.
+- [ ] **Accesibles y accionables**: icono + etiqueta de texto además del color; cada aviso dice qué puede pasar y qué hacer.
+- [ ] **Icono de la extensión**: «!» rojo para Peligro (ya existe) y marca amarilla para Precaución.
+
+**Medir para no equivocarse** (datos solo en los tests, nunca en la extensión)
+- [ ] **Falsos positivos**: las ~10.000 primeras webs de **Tranco**, descargadas al ejecutar el test (sus fuentes incluyen
+  licencias no comerciales: no se guardan en el repo ni en el paquete). Objetivo: ninguna en Peligro y muy pocas en
+  Precaución; revisar una a una las que salgan.
+- [ ] **Detección**: muestras fijas de **URLhaus** (CC0) y **Phishing.Database** (MIT) guardadas en el repo con su licencia;
+  informe del porcentaje detectado por veredicto. Expectativa realista: las heurísticas no ven un dominio malicioso «limpio»
+  sin señales; el objetivo es no dejar pasar ninguno con señales claras.
+- [ ] Descartado: OpenPhish (sus condiciones prohíben usarlo para desarrollar productos o para detección).
+- [ ] Sin listas negras dentro de la extensión (caducan en días y engordan el paquete). Una lista actualizable y opcional,
+  descargada entera (sin consultar cada URL), queda como idea para la Fase 5.
 
 #### 4.1 Página de escaneo: cámara y pantalla — tamaño L
 - [ ] Nueva página de la extensión `scan.html`, abierta en **su propia pestaña** desde el popup («Escanear con la cámara»,
