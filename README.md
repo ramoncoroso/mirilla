@@ -69,7 +69,8 @@ The E2E build (`E2E=1`, in `.output-e2e/`) adds `<all_urls>` (automation cannot 
 ## Privacy
 
 Mirilla does not collect, send or sell any data. Images are decoded in your browser and the
-history (optional, can be turned off) is stored only on your device (`storage.local`).
+history (on by default, can be turned off; never from private windows; only the site's origin) is stored only
+on your device (`storage.local`).
 Full policy: [PRIVACY.md](PRIVACY.md).
 
 ## License

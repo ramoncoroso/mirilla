@@ -2,16 +2,21 @@ import { browser } from 'wxt/browser';
 import { decodeBlob, type Code } from '@/lib/decode';
 import { t } from '@/lib/i18n';
 import type { MessageKey } from '@/locales/messages';
-import { addToHistory, clearHistory, getHistory, isHistoryEnabled, setHistoryEnabled } from '@/lib/history';
+import { getHistory, isHistoryEnabled } from '@/lib/history';
 import type { FromPopup } from '@/lib/messages';
 import { copyText, el, renderCodes, RESULT_CSS, THEME_CSS, THEME_DARK_CSS } from '@/lib/render';
+import { revealHidden } from '@/lib/unicode';
 import { analyzeUrl } from '@/lib/url-safety';
 
 // getUILanguage() puede no coincidir con la traducción que el navegador eligió; esta sí.
 document.documentElement.lang = t('lang');
 for (const node of document.querySelectorAll<HTMLElement>('[data-i18n]')) {
+  // Las claves vienen de popup.html; t() devuelve la propia clave si no existiera, así que se nota enseguida.
   node.textContent = t(node.dataset.i18n as MessageKey);
 }
+
+// Soltar un fichero fuera de la zona de arrastre no debe hacer que el popup navegue a él.
+for (const type of ['dragover', 'drop'] as const) document.addEventListener(type, (e) => e.preventDefault());
 
 const style = document.createElement('style');
 style.textContent = `:root { ${THEME_CSS} } @media (prefers-color-scheme: dark) { :root { ${THEME_DARK_CSS} } } ${RESULT_CSS}`;
@@ -25,8 +30,15 @@ const actions = {
   openUrl(url: string) {
     if (analyzeUrl(url).openable) void browser.tabs.create({ url });
   },
-  copy: (text: string) => copyText(text),
+  // En una página de la extensión el respaldo con execCommand es seguro: ninguna web ve sus eventos.
+  copy: (text: string) => copyText(text, { allowFallback: true }),
 };
+
+/** El historial se escribe solo desde el background (una única cola); nunca en ventanas privadas. */
+async function saveToHistory(codes: Code[], pageUrl: string) {
+  if (codes.length === 0 || (await activeTab())?.incognito || browser.extension.inIncognitoContext) return;
+  await browser.runtime.sendMessage({ type: 'history-add', codes, pageUrl } satisfies FromPopup);
+}
 
 function setStatus(text: string | null) {
   status.hidden = !text;
@@ -34,7 +46,7 @@ function setStatus(text: string | null) {
 }
 
 function showCodes(codes: Code[]) {
-  results.replaceChildren();
+  clearResults();
   if (codes.length === 0) {
     setStatus(t('noCodesShort'));
     return;
@@ -53,11 +65,11 @@ async function activeTab() {
 
 async function decodeAndShow(blob: Blob, source: string) {
   setStatus(t('reading'));
-  results.replaceChildren();
+  clearResults();
   try {
     const codes = await decodeBlob(blob);
     showCodes(codes);
-    await addToHistory(codes, source);
+    await saveToHistory(codes, source);
     void renderHistory();
   } catch (e) {
     console.error(e);
@@ -69,8 +81,13 @@ async function decodeAndShow(blob: Blob, source: string) {
 
 $('select').addEventListener('click', async () => {
   const tab = await activeTab();
-  if (!tab?.id) return;
-  await browser.runtime.sendMessage({ type: 'start-selection', tabId: tab.id } satisfies FromPopup);
+  if (tab?.id === undefined) return;
+  const started = await browser.runtime.sendMessage({ type: 'start-selection', tabId: tab.id } satisfies FromPopup);
+  // En páginas protegidas no se puede seleccionar: se explica en lugar de cerrar sin más.
+  if (!started) {
+    setStatus(t('captureBlocked'));
+    return;
+  }
   // El popup tapa la página: se cierra para que se pueda arrastrar.
   window.close();
 });
@@ -89,8 +106,17 @@ $('scan').addEventListener('click', async () => {
 
 // ---- Generar el QR de la página actual ----
 
-$('generate').addEventListener('click', async () => {
+/** URL temporal de la última imagen generada; se libera al generar otra o al cerrar el popup. */
+let generatedUrl: string | null = null;
+
+function clearResults() {
+  if (generatedUrl) URL.revokeObjectURL(generatedUrl);
+  generatedUrl = null;
   results.replaceChildren();
+}
+
+$('generate').addEventListener('click', async () => {
+  clearResults();
   const url = (await activeTab())?.url;
   if (!url || !/^https?:/.test(url)) {
     setStatus(t('generateUnavailable'));
@@ -108,6 +134,7 @@ $('generate').addEventListener('click', async () => {
 
 function showGenerated(url: string, png: Blob) {
   const src = URL.createObjectURL(png);
+  generatedUrl = src;
   const card = el('article', 'qr-card generated');
   const img = el('img') as HTMLImageElement;
   img.src = src;
@@ -180,8 +207,8 @@ async function renderHistory() {
   for (const entry of entries) {
     const li = el('li');
     const btn = el('button');
-    btn.title = entry.text;
-    btn.append(el('span', 'qr-badge', entry.format), el('span', 'h-text', entry.text), el('span', 'h-when', timeAgo(entry.at)));
+    btn.title = revealHidden(entry.text);
+    btn.append(el('span', 'qr-badge', entry.format), el('span', 'h-text', revealHidden(entry.text)), el('span', 'h-when', timeAgo(entry.at)));
     btn.addEventListener('click', () => {
       showCodes([entry]);
       window.scrollTo({ top: 0 });
@@ -192,11 +219,11 @@ async function renderHistory() {
 }
 
 historyEnabled.addEventListener('change', async () => {
-  await setHistoryEnabled(historyEnabled.checked);
+  await browser.runtime.sendMessage({ type: 'history-set-enabled', enabled: historyEnabled.checked } satisfies FromPopup);
   void renderHistory();
 });
 $('history-clear').addEventListener('click', async () => {
-  await clearHistory();
+  await browser.runtime.sendMessage({ type: 'history-clear' } satisfies FromPopup);
   void renderHistory();
 });
 
@@ -205,7 +232,7 @@ function timeAgo(at: number) {
   if (s < 60) return t('timeNow');
   if (s < 3600) return t('timeMinutes', Math.floor(s / 60));
   if (s < 86400) return t('timeHours', Math.floor(s / 3600));
-  return new Date(at).toLocaleDateString();
+  return new Date(at).toLocaleDateString(t('lang'));
 }
 
 // ---- Arranque ----
@@ -213,11 +240,13 @@ function timeAgo(at: number) {
 void (async () => {
   historyEnabled.checked = await isHistoryEnabled();
   void renderHistory();
-  const commands = await browser.commands.getAll();
-  const shortcut = commands.find((c) => c.name === 'select-region')?.shortcut;
+  // Firefox para Android no tiene atajos de teclado.
+  const commands = browser.commands as typeof browser.commands | undefined;
+  const shortcut = (await commands?.getAll().catch(() => []))?.find((c) => c.name === 'select-region')?.shortcut;
   if (shortcut) $('shortcut').textContent = shortcut;
 })();
 
-declare const __E2E__: boolean;
 // Solo Firefox lo necesita (geckodriver no puede ejecutar scripts en páginas de extensión).
 if (__E2E__ && import.meta.env.FIREFOX) void import('@/lib/e2e-bridge').then((m) => m.mount());
+
+window.addEventListener('pagehide', clearResults);

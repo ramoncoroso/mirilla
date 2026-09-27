@@ -35,6 +35,11 @@ WebAssembly: copied unmodified from the npm package zxing-wasm@${zxing.version}
 SHA-256:
 ${lines.join('\n')}
 
+The bundles contain the string "fastly.jsdelivr.net/npm/zxing-wasm@…": it is zxing-wasm's default
+locator for its .wasm file. It is never used: the extension fetches the bundled .wasm itself and passes
+it to zxing as bytes (overrides.wasmBinary in lib/decode.ts and lib/generate.ts), so zxing never
+resolves a URL on its own. Nothing is loaded from any CDN.
+
 Permissions: activeTab, contextMenus, scripting, storage. No host permissions and no remote code.
 Network: only fetching an image the user right-clicks (to decode it), and opening a link only
 when the user clicks "Open". No analytics, no data collection.

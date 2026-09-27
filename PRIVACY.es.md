@@ -2,7 +2,7 @@
 
 [English](PRIVACY.md) · **Español**
 
-_Última actualización: 27 de septiembre de 2026_
+_Última actualización: 27 de septiembre de 2026 (rev. 2)_
 
 Mirilla es una extensión de navegador que lee códigos QR y de barras. Está hecha para que
 **ningún dato salga de tu equipo**.
@@ -10,17 +10,22 @@ Mirilla es una extensión de navegador que lee códigos QR y de barras. Está he
 ## Lo que Mirilla no hace
 
 - No recoge, guarda en ningún servidor, vende ni comparte datos personales o de uso.
-- No envía imágenes, códigos, URLs ni actividad de navegación a ningún sitio. La lectura se
-  hace entera dentro de tu navegador, con código WebAssembly incluido en la extensión.
+- No envía imágenes, códigos, URLs ni actividad de navegación a nadie. La lectura se hace
+  entera dentro de tu navegador, con código WebAssembly incluido en la extensión.
+- La única petición de red que hace por su cuenta es volver a descargar una imagen sobre la que
+  haces clic derecho («Leer código de esta imagen»), directamente del sitio que la sirve y sin
+  cookies, para leerla en local.
 - No tiene analítica, ni anuncios, ni rastreo, ni cuentas.
 - No carga código remoto.
 
 ## Lo que se queda en tu equipo
 
-- **Historial de lecturas** (opcional): los últimos 50 códigos leídos, con la página de la que
-  salieron, se guardan en el almacenamiento local de la extensión (`storage.local`) para que
-  puedas volver a verlos en el popup. Puedes desactivarlo o borrarlo cuando quieras desde el
-  popup; al desactivarlo también se borra. Desinstalar la extensión también lo borra.
+- **Historial de lecturas** (activado por defecto, se puede desactivar): los últimos 50 códigos
+  leídos y el sitio del que salieron (solo su origen, como `https://ejemplo.com`, nunca la
+  dirección completa) se guardan en el almacenamiento local de la extensión (`storage.local`)
+  para que puedas volver a verlos en el popup. De las ventanas privadas o de incógnito no se
+  guarda nada. Puedes desactivarlo o borrarlo cuando quieras desde el popup; al desactivarlo
+  también se borra. Desinstalar la extensión también lo borra.
 - **Tu preferencia de historial** (activado/desactivado), también en almacenamiento local.
 
 ## Permisos y para qué se usan

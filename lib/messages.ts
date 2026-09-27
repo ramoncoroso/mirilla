@@ -14,5 +14,9 @@ export type ToContent =
   | { type: 'prepare-capture' }
   | { type: 'locate-image'; srcUrl: string };
 
-/** Mensajes del popup al background. */
-export type FromPopup = { type: 'start-selection'; tabId: number };
+/** Mensajes del popup al background. Solo se aceptan si vienen de una página de la extensión. */
+export type FromPopup =
+  | { type: 'start-selection'; tabId: number }
+  | { type: 'history-add'; codes: Code[]; pageUrl: string }
+  | { type: 'history-set-enabled'; enabled: boolean }
+  | { type: 'history-clear' };

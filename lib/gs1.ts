@@ -19,6 +19,8 @@ export interface AiDef {
   /** Longitud máxima del valor, si es variable. */
   max?: number;
   unit?: string;
+  /** Los primeros N dígitos terminan en un dígito de control (GTIN 14, GLN 13, SSCC 18...). */
+  check?: number;
 }
 
 export interface Gs1Element {
@@ -31,6 +33,8 @@ export interface Gs1Element {
   checkDigitOk?: boolean;
   /** Dígito de control correcto, cuando el leído no lo es. */
   expectedCheckDigit?: string;
+  /** La longitud no es la de la especificación: el dato puede estar mal leído (p. ej. falta un separador GS). */
+  malformed?: { expected: string; actual: number };
 }
 
 export interface Gs1Result {
@@ -44,9 +48,9 @@ export interface Gs1Result {
 const T = (title: string, kind: AiKind, extra: Partial<AiDef> = {}): AiDef => ({ title, kind, ...extra });
 
 const AIS: Record<string, AiDef> = {
-  '00': T('SSCC', 'sscc', { length: 18, label: 'gs1Sscc' }),
-  '01': T('GTIN', 'gtin', { length: 14, label: 'gs1Gtin' }),
-  '02': T('CONTENT', 'gtin', { length: 14, label: 'gs1Content' }),
+  '00': T('SSCC', 'sscc', { length: 18, check: 18, label: 'gs1Sscc' }),
+  '01': T('GTIN', 'gtin', { length: 14, check: 14, label: 'gs1Gtin' }),
+  '02': T('CONTENT', 'gtin', { length: 14, check: 14, label: 'gs1Content' }),
   '10': T('BATCH/LOT', 'text', { max: 20, label: 'gs1Batch' }),
   '11': T('PROD DATE', 'date', { length: 6, label: 'gs1ProdDate' }),
   '12': T('DUE DATE', 'date', { length: 6, label: 'gs1DueDate' }),
@@ -64,9 +68,9 @@ const AIS: Record<string, AiDef> = {
   '243': T('PCN', 'text', { max: 20 }),
   '250': T('SECONDARY SERIAL', 'text', { max: 30 }),
   '251': T('REF. TO SOURCE', 'text', { max: 30 }),
-  '253': T('GDTI', 'text', { max: 30 }),
+  '253': T('GDTI', 'text', { max: 30, check: 13 }),
   '254': T('GLN EXTENSION COMPONENT', 'text', { max: 20 }),
-  '255': T('GCN', 'text', { max: 25 }),
+  '255': T('GCN', 'text', { max: 25, check: 13 }),
   '30': T('VAR. COUNT', 'count', { max: 8, label: 'gs1Count' }),
   '37': T('COUNT', 'count', { max: 8, label: 'gs1Count' }),
   // Medidas: el cuarto dígito del AI son los decimales (3103 = kg con 3 decimales).
@@ -91,32 +95,32 @@ const AIS: Record<string, AiDef> = {
   '393': T('PRICE', 'amountIso', { max: 18, label: 'gs1Price' }),
   '400': T('ORDER NUMBER', 'text', { max: 30, label: 'gs1Order' }),
   '401': T('GINC', 'text', { max: 30, label: 'gs1Consignment' }),
-  '402': T('GSIN', 'text', { length: 17, label: 'gs1Shipment' }),
+  '402': T('GSIN', 'text', { length: 17, check: 17, label: 'gs1Shipment' }),
   '403': T('ROUTE', 'text', { max: 30 }),
-  '410': T('SHIP TO LOC', 'gln', { length: 13, label: 'gs1ShipTo' }),
-  '411': T('BILL TO', 'gln', { length: 13, label: 'gs1BillTo' }),
-  '412': T('PURCHASE FROM', 'gln', { length: 13, label: 'gs1PurchaseFrom' }),
-  '413': T('SHIP FOR LOC', 'gln', { length: 13, label: 'gs1ShipTo' }),
-  '414': T('LOC No.', 'gln', { length: 13, label: 'gs1Location' }),
-  '415': T('PAY TO', 'gln', { length: 13, label: 'gs1PayTo' }),
-  '416': T('PROD/SERV LOC', 'gln', { length: 13, label: 'gs1Location' }),
-  '417': T('PARTY', 'gln', { length: 13, label: 'gs1Party' }),
+  '410': T('SHIP TO LOC', 'gln', { length: 13, check: 13, label: 'gs1ShipTo' }),
+  '411': T('BILL TO', 'gln', { length: 13, check: 13, label: 'gs1BillTo' }),
+  '412': T('PURCHASE FROM', 'gln', { length: 13, check: 13, label: 'gs1PurchaseFrom' }),
+  '413': T('SHIP FOR LOC', 'gln', { length: 13, check: 13, label: 'gs1ShipFor' }),
+  '414': T('LOC No.', 'gln', { length: 13, check: 13, label: 'gs1Location' }),
+  '415': T('PAY TO', 'gln', { length: 13, check: 13, label: 'gs1PayTo' }),
+  '416': T('PROD/SERV LOC', 'gln', { length: 13, check: 13, label: 'gs1Location' }),
+  '417': T('PARTY', 'gln', { length: 13, check: 13, label: 'gs1Party' }),
   '420': T('SHIP TO POST', 'text', { max: 20, label: 'gs1ShipToPost' }),
   '422': T('ORIGIN', 'country', { length: 3, label: 'gs1Origin' }),
   '424': T('COUNTRY - PROCESS', 'country', { length: 3, label: 'gs1ProcessCountry' }),
   '426': T('COUNTRY - FULL PROCESS', 'country', { length: 3, label: 'gs1ProcessCountry' }),
   '7003': T('EXPIRY TIME', 'text', { length: 10 }),
   '7006': T('FIRST FREEZE DATE', 'date', { length: 6 }),
-  '8003': T('GRAI', 'text', { max: 30 }),
+  '8003': T('GRAI', 'text', { max: 30, check: 14 }),
   '8004': T('GIAI', 'text', { max: 30 }),
-  '8006': T('ITIP', 'text', { length: 18 }),
+  '8006': T('ITIP', 'text', { length: 18, check: 14 }),
   '8008': T('PROD TIME', 'text', { max: 12 }),
   '8010': T('CPID', 'text', { max: 30 }),
   '8011': T('CPID SERIAL', 'text', { max: 12 }),
   '8012': T('VERSION', 'text', { max: 20 }),
   '8013': T('GMN', 'text', { max: 25 }),
-  '8017': T('GSRN - PROVIDER', 'text', { length: 18 }),
-  '8018': T('GSRN - RECIPIENT', 'text', { length: 18 }),
+  '8017': T('GSRN - PROVIDER', 'text', { length: 18, check: 18 }),
+  '8018': T('GSRN - RECIPIENT', 'text', { length: 18, check: 18 }),
   '8020': T('REF No.', 'text', { max: 25 }),
   '8200': T('PRODUCT URL', 'text', { max: 70 }),
   '90': T('INTERNAL', 'text', { max: 30, label: 'gs1Internal' }),
@@ -150,7 +154,7 @@ function matchAi(s: string): { ai: string; def: AiDef; decimals?: number } | nul
     // 310n, 392n...: AI de 4 dígitos cuyo último dígito son los decimales.
     if (len === 3 && DECIMAL_FAMILIES.has(ai)) {
       const full = s.slice(0, 4);
-      if (!/^\d{4}$/.test(full)) return null;
+      if (!/^\d{4}$/.test(full) || !validDecimals(full)) return null;
       return { ai: full, def: AIS[ai]!, decimals: Number(full[3]) };
     }
     const def = AIS[ai];
@@ -189,12 +193,23 @@ export function toHri(elements: Gs1Element[], rest?: string): string {
   return elements.map((e) => `(${e.ai})${e.value}`).join('') + (rest ?? '');
 }
 
+/** En 31nn–36nn (medidas) los decimales van de 0 a 5; en 39nn (importes), de 0 a 9. */
+function validDecimals(ai: string): boolean {
+  return ai.startsWith('39') || Number(ai[3]) <= 5;
+}
+
 function withChecks(e: Gs1Element): Gs1Element {
-  const kind = e.def?.kind;
-  if ((kind === 'gtin' || kind === 'gln' || kind === 'sscc') && /^\d+$/.test(e.value)) {
-    const expected = checkDigit(e.value.slice(0, -1));
-    const ok = expected === e.value.slice(-1);
-    return ok ? { ...e, checkDigitOk: true } : { ...e, checkDigitOk: false, expectedCheckDigit: expected };
+  const def = e.def;
+  if (!def) return e;
+  // Una longitud que no cuadra suele ser un dato mal partido (falta un GS): el dígito de control no significaría nada.
+  if (def.length !== undefined && e.value.length !== def.length) return { ...e, malformed: { expected: String(def.length), actual: e.value.length } };
+  if (def.max !== undefined && e.value.length > def.max) return { ...e, malformed: { expected: `≤ ${def.max}`, actual: e.value.length } };
+  if (def.check !== undefined) {
+    const digits = e.value.slice(0, def.check);
+    if (digits.length === def.check && /^\d+$/.test(digits)) {
+      const expected = checkDigit(digits.slice(0, -1));
+      return expected === digits.slice(-1) ? { ...e, checkDigitOk: true } : { ...e, checkDigitOk: false, expectedCheckDigit: expected };
+    }
   }
   return e;
 }
@@ -241,6 +256,26 @@ export function parseGs1Date(v: string, now = new Date()): { date: Date; endOfMo
 // ---- GS1 Digital Link ----
 
 const DL_PRIMARY = new Set(['01', '00', '253', '255', '401', '402', '414', '417', '8003', '8004', '8006', '8010', '8013', '8017', '8018']);
+
+/** Sintaxis de cada clave principal de Digital Link (GS1 General Specifications, sección 3). */
+const CSET82 = "[!\"%&'()*+,\\-./0-9:;<=>?A-Z_a-z]";
+const DL_PRIMARY_SYNTAX: Record<string, RegExp> = {
+  '01': /^(\d{8}|\d{12,14})$/,
+  '00': /^\d{18}$/,
+  '253': new RegExp(`^\\d{13}${CSET82}{0,17}$`),
+  '255': /^\d{13,25}$/,
+  '401': new RegExp(`^\\d{4}${CSET82}{0,26}$`),
+  '402': /^\d{17}$/,
+  '414': /^\d{13}$/,
+  '417': /^\d{13}$/,
+  '8003': new RegExp(`^\\d{14}${CSET82}{0,16}$`),
+  '8004': new RegExp(`^\\d{4}${CSET82}{0,26}$`),
+  '8006': /^\d{18}$/,
+  '8010': /^\d{4}[#\-/0-9A-Z]{0,26}$/,
+  '8013': new RegExp(`^\\d{4}${CSET82}{0,21}$`),
+  '8017': /^\d{18}$/,
+  '8018': /^\d{18}$/,
+};
 /** Nombres cortos antiguos permitidos en Digital Link. */
 const DL_ALIASES: Record<string, string> = { gtin: '01', cpv: '22', lot: '10', ser: '21', exp: '17', bbd: '15' };
 
@@ -258,15 +293,20 @@ export function parseDigitalLink(url: string): Gs1Element[] | null {
   const start = segs.findIndex((seg, i) => DL_PRIMARY.has(normAi(seg)) && i + 1 < segs.length);
   if (start < 0) return null;
 
+  // La clave principal tiene que tener su formato: si no, es una URL cualquiera (/archive/00/123456, /c/414/2...).
+  const primaryAi = normAi(segs[start]!);
+  const primaryValue = segs[start + 1]!;
+  if (!DL_PRIMARY_SYNTAX[primaryAi]?.test(primaryValue)) return null;
+
   const elements: Gs1Element[] = [];
   for (let i = start; i + 1 < segs.length; i += 2) {
     const ai = normAi(segs[i]!);
-    if (!/^\d{2,4}$/.test(ai)) return null;
+    if (!/^\d{2,4}$/.test(ai) || !(AIS[ai] || (DECIMAL_FAMILIES.has(ai.slice(0, 3)) && validDecimals(ai)))) return null;
     elements.push(dlElement(ai, segs[i + 1]!));
   }
   for (const [key, value] of u.searchParams) {
     const ai = normAi(key);
-    if (/^\d{2,4}$/.test(ai) && (AIS[ai] || DECIMAL_FAMILIES.has(ai.slice(0, 3)))) elements.push(dlElement(ai, value));
+    if (/^\d{2,4}$/.test(ai) && (AIS[ai] || (DECIMAL_FAMILIES.has(ai.slice(0, 3)) && validDecimals(ai)))) elements.push(dlElement(ai, value));
   }
   const primary = elements[0]!;
   // En Digital Link el GTIN puede ir como GTIN-8/12/13/14: se normaliza a 14 dígitos.
@@ -357,6 +397,7 @@ const PREFIXES: [number, number, string[] | MessageKey][] = [
   [613, 613, ['DZ']],
   [615, 615, ['NG']],
   [616, 616, ['KE']],
+  [617, 617, ['CM']],
   [618, 618, ['CI']],
   [619, 619, ['TN']],
   [620, 620, ['TZ']],
@@ -368,7 +409,10 @@ const PREFIXES: [number, number, string[] | MessageKey][] = [
   [627, 627, ['KW']],
   [628, 628, ['SA']],
   [629, 629, ['AE']],
+  [630, 630, ['QA']],
+  [631, 631, ['NA']],
   [640, 649, ['FI']],
+  [680, 681, ['CN']],
   [690, 699, ['CN']],
   [700, 709, ['NO']],
   [729, 729, ['IL']],
@@ -415,9 +459,10 @@ const PREFIXES: [number, number, string[] | MessageKey][] = [
   [900, 919, ['AT']],
   [930, 939, ['AU']],
   [940, 949, ['NZ']],
-  [950, 950, 'prefixGs1Global'],
+  [950, 952, 'prefixGs1Global'],
   [955, 955, ['MY']],
   [958, 958, ['MO']],
+  [960, 969, 'prefixGs1Global'],
   [977, 977, 'prefixIssn'],
   [978, 978, 'prefixIsbn'],
   [980, 980, 'prefixRefund'],

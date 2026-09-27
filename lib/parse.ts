@@ -17,7 +17,7 @@ export type Parsed =
   | { kind: 'sms'; number: string; body: string }
   | { kind: 'geo'; lat: number; lon: number; query: string }
   | { kind: 'contact'; name: string; fields: Field[] }
-  | { kind: 'sepa'; name: string; iban: string; bic: string; amount: string; reference: string }
+  | { kind: 'sepa'; name: string; iban: string; ibanValid: boolean; bic: string; /** En euros, p. ej. "12.50" (vacío si no lo indica). */ amount: string; reference: string }
   | { kind: 'text'; text: string };
 
 /** Formatos cuyo contenido es un GTIN (número de producto). */
@@ -29,7 +29,11 @@ export function parseCode(code: Code): Parsed {
     const { elements, rest } = parseGs1(code.raw ?? code.text);
     if (elements.length > 0) return { kind: 'gs1', elements, rest };
   }
-  if (PRODUCT_FORMATS.has(code.format) && /^\d{8,14}$/.test(code.text)) return { kind: 'product', gtin: code.text };
+  if (PRODUCT_FORMATS.has(code.format) && /^\d{8,14}$/.test(code.text)) {
+    // UPC-E es un UPC-A comprimido: el GTIN (y su prefijo GS1) es el de 12 dígitos.
+    const gtin = code.format === 'UPC-E' ? (expandUpcE(code.text) ?? code.text) : code.text;
+    return { kind: 'product', gtin };
+  }
   const parsed = parseContent(code.text);
   if (parsed.kind === 'url') {
     const gs1 = parseDigitalLink(parsed.url);
@@ -52,9 +56,10 @@ export function parseContent(raw: string): Parsed {
   if (lower.startsWith('geo:')) return parseGeo(text) ?? { kind: 'text', text: raw };
   if (text.startsWith('BCD\n') || text.startsWith('BCD\r\n')) return parseEpc(text) ?? { kind: 'text', text: raw };
 
-  // Cualquier cosa con esquema (http, https, javascript, data...) se trata como URL
-  // para que el análisis de seguridad la vea; lo que parece un dominio suelto no.
-  if (/^[a-z][a-z0-9+.-]*:/i.test(text) && !/\s/.test(text)) {
+  // Los esquemas web, los peligrosos y los que abren otras aplicaciones se tratan como URL para que
+  // pasen por el análisis de seguridad. Otros "X:valor" (SN:ABC123, Lote:42) son texto normal.
+  const scheme = /^([a-z][a-z0-9+.-]*):/i.exec(text)?.[1]?.toLowerCase();
+  if (scheme && URL_SCHEMES.has(scheme) && !/\s/.test(text)) {
     try {
       new URL(text);
       return { kind: 'url', url: text };
@@ -65,6 +70,51 @@ export function parseContent(raw: string): Parsed {
   if (/^www\.[^\s]+\.[a-z]{2,}(\/\S*)?$/i.test(text)) return { kind: 'url', url: `https://${text}` };
 
   return { kind: 'text', text: raw };
+}
+
+const URL_SCHEMES = new Set([
+  'http', 'https', 'javascript', 'data', 'vbscript', 'file', 'blob', 'filesystem',
+  'ftp', 'ftps', 'intent', 'market', 'itms-services', 'itms-apps', 'facetime', 'facetime-audio',
+  'skype', 'whatsapp', 'tg', 'zoommtg', 'otpauth', 'bitcoin', 'ethereum', 'spotify', 'sip',
+]);
+
+/** Expande un UPC-E (8 dígitos) a su UPC-A (12), según la tabla de la especificación. */
+export function expandUpcE(upce: string): string | null {
+  if (!/^[01]\d{7}$/.test(upce)) return null;
+  const [ns, d1, d2, d3, d4, d5, d6, check] = upce.split('') as [string, string, string, string, string, string, string, string];
+  let body: string;
+  if (d6 === '0' || d6 === '1' || d6 === '2') body = `${d1}${d2}${d6}0000${d3}${d4}${d5}`;
+  else if (d6 === '3') body = `${d1}${d2}${d3}00000${d4}${d5}`;
+  else if (d6 === '4') body = `${d1}${d2}${d3}${d4}00000${d5}`;
+  else body = `${d1}${d2}${d3}${d4}${d5}0000${d6}`;
+  return `${ns}${body}${check}`;
+}
+
+/** Valida un IBAN con el algoritmo ISO 13616 (módulo 97). */
+export function isValidIban(iban: string): boolean {
+  if (!/^[A-Z]{2}\d{2}[A-Z0-9]{10,30}$/.test(iban)) return false;
+  const moved = iban.slice(4) + iban.slice(0, 4);
+  let rest = 0;
+  for (const ch of moved) {
+    const n = /\d/.test(ch) ? ch : String(ch.charCodeAt(0) - 55);
+    for (const digit of n) rest = (rest * 10 + Number(digit)) % 97;
+  }
+  return rest === 1;
+}
+
+/**
+ * Parámetros de una query de mailto:/sms:/geo:. A diferencia de URLSearchParams, "+" es literal (RFC 6068):
+ * "subject=1+1" es "1+1", no "1 1".
+ */
+function queryParams(query: string): Map<string, string> {
+  const params = new Map<string, string>();
+  for (const pair of query.split('&')) {
+    if (!pair) continue;
+    const eq = pair.indexOf('=');
+    const key = safeDecode(eq < 0 ? pair : pair.slice(0, eq)).toLowerCase();
+    if (!params.has(key)) params.set(key, eq < 0 ? '' : safeDecode(pair.slice(eq + 1)));
+  }
+  return params;
 }
 
 // Divide "K:v;K:v;;" respetando los escapes \; \: \, \\ de MECARD/WIFI.
@@ -169,8 +219,9 @@ function parseMatMsg(text: string): Parsed {
 }
 
 function parseMailto(text: string): Parsed {
-  const [addr = '', query = ''] = text.slice(7).split('?');
-  const params = new URLSearchParams(query);
+  const q = text.indexOf('?');
+  const addr = q < 0 ? text.slice(7) : text.slice(7, q);
+  const params = queryParams(q < 0 ? '' : text.slice(q + 1));
   return {
     kind: 'email',
     to: safeDecode(addr),
@@ -184,7 +235,7 @@ function parseSms(text: string): Parsed {
   // smsto:NUM:MENSAJE  |  sms:NUM?body=MENSAJE
   const q = rest.indexOf('?');
   if (q >= 0) {
-    return { kind: 'sms', number: rest.slice(0, q), body: new URLSearchParams(rest.slice(q + 1)).get('body') ?? '' };
+    return { kind: 'sms', number: rest.slice(0, q), body: queryParams(rest.slice(q + 1)).get('body') ?? '' };
   }
   const c = rest.indexOf(':');
   if (c >= 0) return { kind: 'sms', number: rest.slice(0, c), body: rest.slice(c + 1) };
@@ -197,7 +248,7 @@ function parseGeo(text: string): Parsed | null {
   const lat = Number(m[1]);
   const lon = Number(m[2]);
   if (Math.abs(lat) > 90 || Math.abs(lon) > 180) return null;
-  const query = m[3] ? (new URLSearchParams(m[3]).get('q') ?? '') : '';
+  const query = m[3] ? (queryParams(m[3]).get('q') ?? '') : '';
   return { kind: 'geo', lat, lon, query };
 }
 
@@ -205,15 +256,17 @@ function parseGeo(text: string): Parsed | null {
 function parseEpc(text: string): Parsed | null {
   const l = text.split(/\r?\n/);
   if (l.length < 7 || l[3] !== 'SCT') return null;
-  const iban = (l[6] ?? '').replace(/\s/g, '');
+  // Solo letras y dígitos: cualquier otro carácter (espacios, invisibles, controles bidi) se descarta del IBAN.
+  const iban = (l[6] ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '');
   if (!iban) return null;
-  const amount = (l[7] ?? '').replace(/^EUR/, '');
+  const amount = /^EUR(\d+(?:\.\d{1,2})?)$/.exec((l[7] ?? '').trim())?.[1] ?? '';
   return {
     kind: 'sepa',
     bic: l[4] ?? '',
     name: l[5] ?? '',
     iban,
-    amount: amount ? `${amount} €` : '',
+    ibanValid: isValidIban(iban),
+    amount,
     reference: l[9] || l[10] || '',
   };
 }

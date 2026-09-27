@@ -1,6 +1,6 @@
 import { callMenu, dragAround, expect, fixture, history, openPage, tabIdOf, test } from './setup';
 
-test('el popup lee una imagen de fichero (WASM cargado con la CSP de la extensión)', async ({ context, extId }) => {
+test('el popup lee una imagen de fichero (WASM cargado con la CSP de la extensión)', async ({ context, extId, sw }) => {
   const popup = await context.newPage();
   await popup.goto(`chrome-extension://${extId}/popup.html`);
   await expect(popup.locator('#scan')).toHaveText('Scan visible area');
@@ -25,7 +25,8 @@ test('el popup lee una imagen de fichero (WASM cargado con la CSP de la extensi�
   await popup.setInputFiles('#file', fixture('datamatrix-gs1.png'));
   await expect(popup.locator('.qr-badge').first()).toHaveText('Data Matrix');
 
-  // Todo lo leído queda en el historial.
+  // Todo lo leído queda en el historial (se espera a que termine la última escritura antes de recargar).
+  await expect.poll(async () => (await history(sw)).length).toBe(4);
   await popup.reload();
   await popup.locator('summary').click();
   await expect(popup.locator('#history li')).toHaveCount(4);
@@ -38,11 +39,11 @@ test('seleccionar un área de la página: inyecta, captura, recorta y decodifica
 
   await callMenu(sw, 'startSelection', await tabIdOf(sw, page));
   await page.bringToFront();
-  await page.waitForTimeout(300);
+  await page.locator('mirilla-ui .select-layer').waitFor();
   await dragAround(page, (await page.locator('#qr').boundingBox())!);
 
   await expect.poll(() => history(sw)).toEqual(['https://www.paypal.com@evil.example/login']);
-  await page.waitForTimeout(300);
+  await page.locator('mirilla-ui .qr-card').waitFor();
   await page.screenshot({ path: 'test-results/seleccion-area.png' });
 });
 

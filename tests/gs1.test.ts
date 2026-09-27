@@ -122,3 +122,44 @@ describe('gtinPrefix', () => {
     expect(gtinPrefix('96385074')).toBeNull(); // GTIN-8
   });
 });
+
+describe('correcciones de la revisión (2026-09-27)', () => {
+  it('Digital Link: una URL cualquiera con segmentos numéricos no se toma por GS1', () => {
+    expect(parseDigitalLink('https://example.com/archive/00/123456')).toBeNull();
+    expect(parseDigitalLink('https://shop.example/c/414/2')).toBeNull();
+    expect(parseDigitalLink('https://example.com/products/253/reviews')).toBeNull();
+    expect(parseDigitalLink('https://news.example/401/some-article')).toBeNull();
+    // Las claves con formato válido sí.
+    expect(parseDigitalLink('https://id.example/00/106141411234567897')?.[0]).toMatchObject({ ai: '00', checkDigitOk: true });
+    expect(parseDigitalLink('https://id.example/414/9506000134352')?.[0]).toMatchObject({ ai: '414', checkDigitOk: true });
+  });
+
+  it('longitud incorrecta: se marca como mal formado en lugar de dar un dígito de control absurdo', () => {
+    const [gtin] = parseGs1('0112345').elements;
+    expect(gtin).toMatchObject({ ai: '01', malformed: { expected: '14', actual: 5 } });
+    expect(gtin?.checkDigitOk).toBeUndefined();
+    // Falta el GS tras el lote: el "lote" se come el AI 21 y pasa del máximo de 20.
+    const [lot] = parseGs1('10LOTE4221ABCDEFGHIJKLMNOP').elements;
+    expect(lot?.malformed).toEqual({ expected: '≤ 20', actual: 24 });
+  });
+
+  it('decimales fuera de rango en medidas: el AI no es válido', () => {
+    const r = parseGs1('3109001250');
+    expect(r.elements).toHaveLength(0);
+    expect(r.rest).toBe('3109001250');
+    expect(parseGs1('3925' + '1250').elements[0]).toMatchObject({ ai: '3925', decimals: 5 });
+  });
+
+  it('dígito de control también en GSRN, GSIN, GRAI, GDTI e ITIP', () => {
+    expect(parseGs1('8018' + '106141411234567897').elements[0]?.checkDigitOk).toBe(true);
+    expect(parseGs1('8018' + '106141411234567898').elements[0]).toMatchObject({ checkDigitOk: false, expectedCheckDigit: '7' });
+    expect(parseGs1('253' + '9506000134352' + 'DOC7').elements[0]?.checkDigitOk).toBe(true);
+    expect(parseGs1('8006' + '09506000134352' + '0102').elements[0]?.checkDigitOk).toBe(true);
+  });
+
+  it('prefijos GS1 que faltaban', () => {
+    expect(gtinPrefix('6801234567890')).toEqual({ regions: ['CN'] });
+    expect(gtinPrefix('6301234567890')).toEqual({ regions: ['QA'] });
+    expect(gtinPrefix('9651234567890')).toEqual({ special: 'prefixGs1Global' });
+  });
+});

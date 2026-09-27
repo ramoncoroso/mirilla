@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseCode, parseContent } from '@/lib/parse';
+import { expandUpcE, isValidIban, parseCode, parseContent } from '@/lib/parse';
 
 describe('parseContent', () => {
   it('reconoce URLs y dominios con www', () => {
@@ -13,6 +13,19 @@ describe('parseContent', () => {
 
   it('no confunde texto con dos puntos con una URL', () => {
     expect(parseContent('Nota: comprar leche').kind).toBe('text');
+  });
+
+  it('«X:valor» con un esquema desconocido es texto (números de serie, lotes...)', () => {
+    expect(parseContent('SN:ABC123').kind).toBe('text');
+    expect(parseContent('Lote:42').kind).toBe('text');
+    // Esquemas que abren otras aplicaciones sí pasan por el análisis de enlaces.
+    expect(parseContent('otpauth://totp/Ejemplo?secret=ABC').kind).toBe('url');
+    expect(parseContent('intent://scan/#Intent;scheme=zxing;end').kind).toBe('url');
+  });
+
+  it('en mailto y SMS el «+» es literal (RFC 6068), no un espacio', () => {
+    expect(parseContent('mailto:a@b.es?subject=1+1%3D2')).toMatchObject({ subject: '1+1=2' });
+    expect(parseContent('sms:600000000?body=A+B')).toMatchObject({ body: 'A+B' });
   });
 
   it('lee WiFi con escapes', () => {
@@ -55,14 +68,28 @@ describe('parseContent', () => {
       bic: 'BSCHESMM',
       name: 'Taller Pérez SL',
       iban: 'ES9121000418450200051332',
-      amount: '12.50 €',
+      ibanValid: true,
+      amount: '12.50',
       reference: 'Factura 2026-17',
     });
+  });
+
+  it('SEPA: el IBAN descarta invisibles y controles bidi, y se valida con módulo 97', () => {
+    const epc = (iban: string) => ['BCD', '002', '1', 'SCT', '', 'X', iban, 'EUR1', '', '', ''].join('\n');
+    // U+202E (RLO) invertiría cómo se ve el IBAN; no debe llegar al valor ni a lo que se copia.
+    expect(parseContent(epc('ES91\u202E2100041845020005\u202C1332'))).toMatchObject({ iban: 'ES9121000418450200051332', ibanValid: true });
+    expect(parseContent(epc('ES9121000418450200051333'))).toMatchObject({ ibanValid: false });
   });
 });
 
 describe('parseCode', () => {
-  it('un EAN-13 es un producto', () => {
+  it('un UPC-E se expande a su UPC-A de 12 dígitos', () => {
+    expect(parseCode({ text: '04252614', format: 'UPC-E', gs1: false })).toEqual({ kind: 'product', gtin: '042100005264' });
+    expect(expandUpcE('01234565')).toBe('012345000065');
+    expect(expandUpcE('24252614')).toBeNull(); // el sistema numérico solo puede ser 0 o 1
+  });
+
+    it('un EAN-13 es un producto', () => {
     expect(parseCode({ text: '8412345678905', format: 'EAN-13', gs1: false })).toEqual({ kind: 'product', gtin: '8412345678905' });
   });
 
@@ -84,5 +111,15 @@ describe('parseCode', () => {
 
   it('una URL normal no lleva datos GS1', () => {
     expect(parseCode({ text: 'https://example.com/', format: 'QR', gs1: false })).toEqual({ kind: 'url', url: 'https://example.com/' });
+  });
+});
+
+describe('isValidIban', () => {
+  it('valida IBAN reales y rechaza los alterados', () => {
+    expect(isValidIban('ES9121000418450200051332')).toBe(true);
+    expect(isValidIban('DE89370400440532013000')).toBe(true);
+    expect(isValidIban('GB82WEST12345698765432')).toBe(true);
+    expect(isValidIban('GB82WEST12345698765433')).toBe(false);
+    expect(isValidIban('ES91')).toBe(false);
   });
 });

@@ -7,7 +7,8 @@ import type { Code } from './decode';
 import { gtinPrefix, ISO_COUNTRY, ISO_CURRENCY, parseGs1Date, type Gs1Element } from './gs1';
 import { t } from './i18n';
 import { parseCode, type Parsed } from './parse';
-import { analyzeUrl, mainDomain } from './url-safety';
+import { hiddenChars, revealHidden } from './unicode';
+import { analyzeUrl, highlightRange } from './url-safety';
 
 export interface RenderActions {
   openUrl(url: string): void;
@@ -26,7 +27,11 @@ export function renderCode(code: Code, actions: RenderActions): HTMLElement {
   const head = el('header', 'qr-head');
   const kind = parsed.kind === 'url' && parsed.gs1 ? 'kindDigitalLink' : KIND_LABEL[parsed.kind];
   head.append(el('span', 'qr-badge', code.format), el('span', 'qr-kind', t(kind)));
-  card.append(head, renderBody(parsed, code, actions));
+  card.append(head);
+  // Invisibles y controles bidi hacen que el texto se vea distinto de lo que es: aviso en cualquier tipo de contenido.
+  const hidden = hiddenChars(code.text);
+  if (hidden.length > 0) card.append(el('p', 'qr-finding qr-danger', t('hiddenChars', hidden.join(', '))));
+  card.append(renderBody(parsed, code, actions));
   return card;
 }
 
@@ -53,10 +58,11 @@ function renderBody(p: Parsed, code: Code, a: RenderActions): HTMLElement {
       // Un Digital Link muestra primero sus datos GS1 y después el análisis de la URL, como cualquier enlace.
       if (p.gs1) renderGs1(body, p.gs1);
       const report = analyzeUrl(p.url);
-      body.append(renderUrl(p.url, report.host));
+      // Se muestra la URL normalizada: es la que abrirá el navegador (%70aypal.com → paypal.com, mayúsculas, punycode...).
+      body.append(renderUrl(report.href, report.host));
       for (const f of report.findings) body.append(el('p', `qr-finding qr-${f.level}`, t(f.message, ...(f.args ?? []))));
       if (report.openable) {
-        const open = button(report.findings.some((f) => f.level === 'danger') ? t('openAnyway') : t('open'), () => a.openUrl(p.url));
+        const open = button(report.findings.some((f) => f.level === 'danger') ? t('openAnyway') : t('open'), () => a.openUrl(report.href));
         if (report.findings.some((f) => f.level === 'danger')) open.classList.add('qr-btn-danger');
         else open.classList.add('qr-btn-primary');
         buttons.append(open);
@@ -99,15 +105,16 @@ function renderBody(p: Parsed, code: Code, a: RenderActions): HTMLElement {
           [t('fieldBeneficiary'), p.name],
           [t('fieldIban'), p.iban],
           [t('fieldBic'), p.bic],
-          [t('fieldAmount'), p.amount],
+          [t('fieldAmount'), p.amount ? new Intl.NumberFormat(t('lang'), { style: 'currency', currency: 'EUR' }).format(Number(p.amount)) : ''],
           [t('fieldReference'), p.reference],
         ]),
       );
+      if (!p.ibanValid) body.append(el('p', 'qr-finding qr-danger', t('ibanInvalid')));
       body.append(el('p', 'qr-finding qr-info', t('sepaWarning')));
       buttons.append(copyButton(t('copyIban'), p.iban, a));
       break;
     case 'text':
-      body.append(el('pre', 'qr-text', p.text));
+      body.append(el('pre', 'qr-text', revealHidden(p.text)));
       break;
     case 'gs1': {
       renderGs1(body, p.elements);
@@ -141,6 +148,7 @@ function renderGs1(body: HTMLElement, elements: Gs1Element[]) {
       rows.push(...prefixRow(e.value));
       prefixNote ||= isCountryPrefix(e.value);
     }
+    if (e.malformed) findings.push(el('p', 'qr-finding qr-warn', t('gs1Malformed', `(${e.ai})`, e.malformed.expected, String(e.malformed.actual))));
     if (e.checkDigitOk === false) findings.push(el('p', 'qr-finding qr-danger', t('gs1BadCheckDigit', `(${e.ai})`, e.expectedCheckDigit ?? '')));
     if (e.ai === '17') {
       const d = parseGs1Date(e.value);
@@ -215,20 +223,14 @@ function startOfToday() {
 }
 
 /** Muestra la URL completa con el dominio principal resaltado, que es lo que decide adónde va. */
-function renderUrl(url: string, host: string): HTMLElement {
+function renderUrl(href: string, host: string): HTMLElement {
   const box = el('p', 'qr-url');
-  const main = host ? mainDomain(host) : '';
-  // Busca el dominio dentro de la autoridad (antes de la ruta) y desde el final,
-  // para no resaltar un "paypal.com" que esté en el usuario o en la ruta.
-  const start = url.indexOf('//') + 2;
-  const rest = url.slice(start);
-  const authorityEnd = start + (rest.search(/[/?#]/) < 0 ? rest.length : rest.search(/[/?#]/));
-  const found = main ? url.toLowerCase().lastIndexOf(main, authorityEnd - main.length) : -1;
-  const idx = found >= start ? found : -1;
-  if (idx < 0) {
-    box.textContent = url;
+  const range = highlightRange(href, host);
+  if (!range) {
+    box.textContent = revealHidden(href);
   } else {
-    box.append(url.slice(0, idx), el('strong', 'qr-domain', url.slice(idx, idx + main.length)), url.slice(idx + main.length));
+    const [from, to] = range;
+    box.append(revealHidden(href.slice(0, from)), el('strong', 'qr-domain', href.slice(from, to)), revealHidden(href.slice(to)));
   }
   return box;
 }
@@ -237,7 +239,7 @@ function dl(rows: [string, string][]): HTMLElement {
   const list = el('dl', 'qr-dl');
   for (const [k, v] of rows) {
     if (!v) continue;
-    list.append(el('dt', '', k), el('dd', '', v));
+    list.append(el('dt', '', k), el('dd', '', revealHidden(v)));
   }
   return list;
 }
@@ -247,15 +249,16 @@ function copyButton(label: string, text: string, a: RenderActions) {
     try {
       await a.copy(text);
       flash(b, t('copied'));
-    } catch {
-      flash(b, t('copyFailed'));
+    } catch (e) {
+      flash(b, e instanceof UnsafeCopyError ? t('copyUnsafe') : t('copyFailed'));
     }
   });
   return b;
 }
 
 function flash(b: HTMLButtonElement, msg: string) {
-  const original = b.textContent;
+  const original = b.dataset.label ?? b.textContent ?? '';
+  b.dataset.label = original;
   b.textContent = msg;
   setTimeout(() => (b.textContent = original), 1400);
 }
@@ -274,13 +277,20 @@ export function el(tag: string, className = '', text?: string): HTMLElement {
   return e;
 }
 
-/** Copia texto; si la API del portapapeles no está disponible (http, sin foco), usa execCommand. */
-export async function copyText(text: string, root: Document | ShadowRoot = document) {
+/** La copia se ha negado porque solo había métodos que la página podría manipular. */
+export class UnsafeCopyError extends Error {}
+
+/**
+ * Copia texto con la API del portapapeles, que no dispara eventos en la página.
+ * Solo en páginas de la extensión (popup) se permite el respaldo con execCommand: dentro de una web, ese
+ * método dispara un evento `copy` que la página puede interceptar para cambiar lo copiado (un IBAN, una URL...).
+ */
+export async function copyText(text: string, { root = document as Document | ShadowRoot, allowFallback = false } = {}) {
   try {
     await navigator.clipboard.writeText(text);
     return;
   } catch {
-    /* fallback abajo */
+    if (!allowFallback) throw new UnsafeCopyError();
   }
   const ta = document.createElement('textarea');
   ta.value = text;
@@ -312,18 +322,19 @@ export const RESULT_CSS = `
 .qr-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .qr-btn { font: inherit; font-size: 12px; text-decoration: none; padding: 5px 10px; border-radius: 6px; border: 1px solid var(--qr-border); background: var(--qr-bg); color: var(--qr-fg); cursor: pointer; }
 .qr-btn:hover { border-color: var(--qr-muted); }
-.qr-btn-primary { background: var(--qr-accent); border-color: var(--qr-accent); color: #fff; }
+/* Color propio para el botón principal: texto blanco con contraste ≥ 4.5:1 (WCAG AA) en los dos temas. */
+.qr-btn-primary { background: var(--qr-primary); border-color: var(--qr-primary); color: #fff; }
 .qr-btn-danger { background: transparent; border-color: var(--qr-danger-fg); color: var(--qr-danger-fg); }
 `;
 
 export const THEME_CSS = `
   --qr-bg: #ffffff; --qr-fg: #1a1a1a; --qr-muted: #5f6368; --qr-border: #dadce0; --qr-card: #fafafa; --qr-badge: #eceff1;
-  --qr-accent: #1a73e8; --qr-highlight: #fff3b0;
+  --qr-accent: #1a73e8; --qr-primary: #1967d2; --qr-highlight: #fff3b0;
   --qr-danger-bg: #fce8e6; --qr-danger-fg: #b3261e; --qr-warn-bg: #fef7e0; --qr-warn-fg: #8a5a00; --qr-info-bg: #e8f0fe; --qr-info-fg: #174ea6;
 `;
 
 export const THEME_DARK_CSS = `
   --qr-bg: #202124; --qr-fg: #e8eaed; --qr-muted: #9aa0a6; --qr-border: #3c4043; --qr-card: #292a2d; --qr-badge: #35363a;
-  --qr-accent: #4c8df6; --qr-highlight: #5c4b00;
+  --qr-accent: #4c8df6; --qr-primary: #1967d2; --qr-highlight: #5c4b00;
   --qr-danger-bg: #4a1f1c; --qr-danger-fg: #f6aea9; --qr-warn-bg: #3f3200; --qr-warn-fg: #fdd663; --qr-info-bg: #1c2b4a; --qr-info-fg: #aecbfa;
 `;

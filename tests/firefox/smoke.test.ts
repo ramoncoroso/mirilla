@@ -123,7 +123,8 @@ const callMenu = (driver: WebDriver, fn: string, tabId: number, arg?: string) =>
 
 async function selectElement(driver: WebDriver, tabId: number, css: string) {
   await callMenu(driver, 'startSelection', tabId);
-  await driver.sleep(300);
+  // mirilla-ui está en el DOM normal de la página: se espera a que aparezca en lugar de dormir un tiempo fijo.
+  await driver.wait(until.elementLocated(By.css('mirilla-ui')), 5000);
   const r = await driver.executeScript<{ x: number; y: number; w: number; h: number }>(
     `const r = document.querySelector(arguments[0]).getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, h: r.height };`,
     css,
@@ -225,6 +226,36 @@ describe('Firefox', () => {
     await callMenu(driver, 'scanVisible', tabId);
     const h = await waitHistory(driver, (h) => h.length === 3);
     assert.ok(h.includes('8412345678905'));
+  });
+
+  test('seguridad: una hoja de estilos hostil y un Escape falso no ocultan el aviso de peligro', async () => {
+    const tabId = await openTab(
+      driver,
+      page(
+        '/hostil',
+        `<style>mirilla-ui { display:none !important; visibility:hidden !important; opacity:0 !important;
+           --qr-danger-fg: transparent !important; --qr-danger-bg: transparent !important; }</style>
+         <img src="/fixtures/qr-url.png" style="position:absolute;left:40px;top:200px">`,
+      ),
+    );
+    await callMenu(driver, 'scanVisible', tabId);
+    await waitHistory(driver, (h) => h[0] === 'https://www.paypal.com@evil.example/login');
+    const state = () =>
+      driver.executeScript<{ open: boolean; display: string; visibility: string; opacity: string; color: string | null }>(`
+        const host = document.querySelector('mirilla-ui');
+        const danger = host?.shadowRoot?.querySelector('.qr-danger');
+        const cs = host ? getComputedStyle(host) : {};
+        return { open: !!host?.shadowRoot?.querySelector('.panel'), display: cs.display, visibility: cs.visibility,
+                 opacity: cs.opacity, color: danger ? getComputedStyle(danger).color : null };`);
+    await driver.wait(async () => (await state()).open, 5000);
+    await driver.executeScript(`window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));`);
+    await driver.sleep(200);
+    const s = await state();
+    assert.equal(s.open, true);
+    assert.notEqual(s.display, 'none');
+    assert.equal(s.visibility, 'visible');
+    assert.equal(s.opacity, '1');
+    assert.equal(s.color, 'rgb(179, 38, 30)');
   });
 
   test('zoom al 150 %: la selección de área recorta el sitio correcto', async () => {

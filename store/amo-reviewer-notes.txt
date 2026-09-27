@@ -14,6 +14,11 @@ SHA-256:
   zxing_reader.wasm  e8af31edb56d0522f4de74495839385ef019ba8bc90d38e5ecb2f18795d86fb2  (= node_modules/zxing-wasm/dist/reader/zxing_reader.wasm)
   zxing_writer.wasm  f78be8b66f1f6d6aba6ce1e34180d36bf509f73edc26ca542810f92c08dc5950  (= node_modules/zxing-wasm/dist/writer/zxing_writer.wasm)
 
+The bundles contain the string "fastly.jsdelivr.net/npm/zxing-wasm@…": it is zxing-wasm's default
+locator for its .wasm file. It is never used: the extension fetches the bundled .wasm itself and passes
+it to zxing as bytes (overrides.wasmBinary in lib/decode.ts and lib/generate.ts), so zxing never
+resolves a URL on its own. Nothing is loaded from any CDN.
+
 Permissions: activeTab, contextMenus, scripting, storage. No host permissions and no remote code.
 Network: only fetching an image the user right-clicks (to decode it), and opening a link only
 when the user clicks "Open". No analytics, no data collection.

@@ -33,6 +33,10 @@
     "wxt": "^0.21.4"
   },
   "dependencies": {
+    "tldts": "^7.4.16",
     "zxing-wasm": "^3.1.4"
+  },
+  "engines": {
+    "node": ">=22.18"
   }
 }

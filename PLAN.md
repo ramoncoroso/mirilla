@@ -74,6 +74,31 @@ y metieron adware. Nos diferenciamos por:
 - [ ] Tras publicar: enlazar las fichas desde el README; etiqueta `v1.0.0` y release en GitHub
 - [x] Icono: se mantiene el actual (decidido 2026-09-27, tras comparar 4 propuestas)
 
+### Revisión de seguridad y buenas prácticas ✅ (2026-09-27)
+Dos revisiones independientes (seguridad y calidad). Sin hallazgos críticos ni altos. Corregido:
+- [x] **Panel dentro de la página endurecido** frente a una web maliciosa: estilos del host con `!important` desde el
+  shadow DOM y colores en elementos internos (la página ya no puede ocultar ni recolorear los avisos), solo teclas
+  reales (`isTrusted`), el panel se vuelve a colgar si la página lo quita, y copiar nunca usa `execCommand` en la página
+  (la página podía cambiar lo copiado). «!» rojo en el icono de la extensión cuando hay peligro.
+- [x] Análisis de URLs: Public Suffix List (`tldts`) para el dominio real (también en `github.io`, `pages.dev`...),
+  plataformas compartidas, redirecciones en parámetros, punto final del host, palabras de phishing aunque vayan solas,
+  URL normalizada en pantalla
+- [x] Caracteres invisibles y controles bidi: aviso y se muestran como ⟨U+…⟩; IBAN limpio y validado (módulo 97)
+- [x] Privacidad: historial sin ventanas privadas y solo con el origen de la página; política actualizada
+- [x] Mensajes: se comprueba el remitente; la captura verifica que la pestaña sigue activa; descarga de imágenes con
+  límite de tiempo y tamaño; límites de memoria al decodificar; WASM cargado en bytes (nunca desde el CDN)
+- [x] Firefox para Android ya no rompe el background; `npm test` en verde; GS1 Digital Link sin falsos positivos;
+  longitudes y decimales GS1 validados; más dígitos de control; UPC-E expandido; accesibilidad (foco, `aria-live`,
+  contraste AA); historial serializado en una cola
+- [x] Pruebas: 60 unitarias, 27 en Chromium (5 de seguridad nuevas), 9 en Firefox
+
+**Comprobación manual antes de publicar cada versión** (con la build publicable `.output/`, no la E2E: las pruebas
+automáticas usan `<all_urls>` y no pueden pulsar menús ni atajos):
+- [ ] Clic derecho en una imagen de **otro dominio sin CORS** → «Leer código de esta imagen» (camino de recorte con solo `activeTab`)
+- [ ] `Alt+Shift+Q` y «Seleccionar área» desde el popup, en Chrome y en Firefox
+- [ ] «Buscar en lo visible» desde el popup real, en Chrome y en Firefox
+- [ ] Un enlace peligroso muestra el «!» rojo en el icono
+
 ### Fase 4 — Opcional (Elixir/Phoenix)
 - [ ] Lector web en labelic.com con LiveView + hook JS (zxing-wasm en el cliente) → SEO y móvil
 - [ ] Backend Phoenix + Postgres solo si una función lo necesita: reputación de URLs, cuentas o sincronización del historial

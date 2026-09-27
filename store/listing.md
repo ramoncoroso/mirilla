@@ -49,7 +49,7 @@ UNDERSTANDS WHAT IT READS
 
 AND ALSO
 • QR code of the current page, to download or copy
-• Optional local history of your last 50 reads
+• Local history of your last 50 reads (can be turned off; never from private windows)
 • English and Spanish
 
 PRIVATE BY DESIGN
@@ -86,7 +86,7 @@ ENTIENDE LO QUE LEE
 
 Y ADEMÁS
 • QR de la página actual, para descargar o copiar
-• Historial local opcional de las últimas 50 lecturas
+• Historial local de las últimas 50 lecturas (desactivable; nunca de ventanas privadas)
 • En castellano e inglés
 
 PRIVADA DESDE EL DISEÑO
@@ -116,7 +116,7 @@ Libre y de código abierto (MIT): https://github.com/ramoncoroso/mirilla
 | `activeTab` | Used only after the user invokes the extension (toolbar popup, context menu or keyboard shortcut) to capture the visible area of the current tab and read the codes in it. No access to other tabs or sites. |
 | `contextMenus` | Adds "Read code from this image", "Select area to read a code" and "Scan visible area for codes" to the right-click menu. |
 | `scripting` | Injects, on demand, the area selector and the results panel into the current tab (the one granted by activeTab). |
-| `storage` | Stores the optional local history of reads and its on/off setting in storage.local. Nothing is synced or sent. |
+| `storage` | Stores the local history of reads (on by default, can be turned off; only the page origin; never from incognito windows) and its on/off setting in storage.local. Nothing is synced or sent. |
 
 **Remote code**: No. All code, including the WebAssembly decoder, is inside the package.
 

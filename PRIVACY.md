@@ -2,7 +2,7 @@
 
 **English** · [Español](PRIVACY.es.md)
 
-_Last updated: 27 September 2026_
+_Last updated: 27 September 2026 (rev. 2)_
 
 Mirilla is a browser extension that reads QR codes and barcodes. It is built so that
 **no data ever leaves your device**.
@@ -10,17 +10,22 @@ Mirilla is a browser extension that reads QR codes and barcodes. It is built so 
 ## What Mirilla does not do
 
 - It does not collect, store on any server, sell or share any personal or usage data.
-- It does not send images, codes, URLs or browsing activity anywhere. Decoding happens
+- It does not send images, codes, URLs or browsing activity to anyone. Decoding happens
   entirely inside your browser, using WebAssembly code bundled with the extension.
+- The only network request it makes on its own is re-downloading an image you right-click
+  ("Read code from this image"), directly from the site that serves it and without cookies,
+  so it can be decoded locally.
 - It has no analytics, no ads, no tracking and no accounts.
 - It does not load remote code.
 
 ## What stays on your device
 
-- **Reading history** (optional): the last 50 codes you read, with the page they came from,
+- **Reading history** (on by default, can be turned off): the last 50 codes you read, and the
+  site they came from (only its origin, such as `https://example.com`, never the full address),
   are saved in the extension's local storage (`storage.local`) so you can see them again in
-  the popup. You can turn history off or clear it at any time from the popup; turning it off
-  also deletes it. Uninstalling the extension deletes it too.
+  the popup. Nothing is saved from private/incognito windows. You can turn history off or clear
+  it at any time from the popup; turning it off also deletes it. Uninstalling the extension
+  deletes it too.
 - **Your history setting** (on/off), also in local storage.
 
 ## Permissions and why they are needed

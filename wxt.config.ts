@@ -11,7 +11,7 @@ export default defineConfig({
   outDir: process.env.E2E ? '.output-e2e' : '.output',
   zip: {
     // El zip de fuentes (para la revisión de Firefox) no respeta .gitignore: se excluye a mano lo privado y lo generado.
-    excludeSources: ['HANDOFF.md', 'test-results/**', 'playwright-report/**', '.output-e2e/**', 'store/assets/**'],
+    excludeSources: ['HANDOFF.md', 'test-results/**', 'playwright-report/**', '.output-e2e/**', 'store/assets/**', 'store/icons/**', 'store/galeria.html'],
   },
   // __E2E__ se sustituye al compilar: en la build normal el código de pruebas desaparece.
   vite: () => ({ define: { __E2E__: JSON.stringify(!!process.env.E2E) } }),
@@ -31,6 +31,8 @@ export default defineConfig({
     short_name: 'Mirilla',
     description: '__MSG_extDescription__',
     default_locale: 'en',
+    // OffscreenCanvas en el service worker, Intl.DisplayNames, Array.at, ClipboardItem...: Chrome/Edge modernos.
+    minimum_chrome_version: '120',
     permissions: ['activeTab', 'contextMenus', 'scripting', 'storage'],
     ...(process.env.E2E && { host_permissions: ['<all_urls>'] }),
     content_security_policy: {

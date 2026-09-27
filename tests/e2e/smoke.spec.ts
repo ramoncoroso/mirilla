@@ -63,7 +63,7 @@ test('el panel de Mirilla no tapa los códigos: un QR en la esquina superior der
 async function selectQr(page: Page, sw: Parameters<typeof history>[0]) {
   await callMenu(sw, 'startSelection', await tabIdOf(sw, page));
   await page.bringToFront();
-  await page.waitForTimeout(300);
+  await page.locator('mirilla-ui .select-layer').waitFor();
   await dragAround(page, (await page.locator('#qr').boundingBox())!);
 }
 
@@ -172,10 +172,14 @@ test.describe('popup', () => {
     await popup.goto(`chrome-extension://${extId}/popup.html`);
     await popup.locator('summary').click();
     await popup.locator('#history-enabled').uncheck();
-    await popup.setInputFiles('#file', fixture('qr-safe.png'));
-    await expect(popup.locator('.qr-url')).toHaveText('https://example.com/');
-    expect(await history(sw)).toEqual([]);
     await expect(popup.locator('#history li')).toHaveText('History is turned off.');
+    await popup.setInputFiles('#file', fixture('qr-safe.png'));
+    await expect(popup.locator('.qr-card .qr-url')).toHaveText('https://example.com/');
+    // Se reactiva y se lee otro código: si el primero se hubiera guardado, aparecería también.
+    await popup.locator('#history-enabled').check();
+    await popup.setInputFiles('#file', fixture('qr-wifi.png'));
+    await expect(popup.locator('.qr-card .qr-kind')).toHaveText('Wi-Fi network');
+    await expect.poll(() => history(sw)).toEqual(['WIFI:T:WPA;S:Casa;P:secreto123;;']);
   });
 
   test('«Open» abre el enlace en una pestaña nueva; «javascript:» no se puede abrir', async ({ context, extId }) => {

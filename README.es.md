@@ -68,7 +68,8 @@ La build E2E (`E2E=1`, en `.output-e2e/`) añade `<all_urls>` (la automatizació
 ## Privacidad
 
 Mirilla no recoge, envía ni vende ningún dato. Las imágenes se decodifican en tu navegador y
-el historial (opcional, desactivable) se guarda solo en tu equipo (`storage.local`).
+el historial (activado por defecto, desactivable; nunca de ventanas privadas; solo el origen del sitio) se guarda
+solo en tu equipo (`storage.local`).
 Política completa: [PRIVACY.es.md](PRIVACY.es.md).
 
 ## Licencia
