@@ -364,9 +364,11 @@ datos (romperían su propuesta). Referencia de mercado: las extensiones lectoras
 - [ ] `.github/FUNDING.yml` con los enlaces (muestra el botón «Sponsor» en GitHub).
 - [ ] Sección «Apoya Mirilla» en los dos README y una línea en las fichas de las tiendas (las políticas de Chrome, Firefox y
   Edge permiten enlaces de donación).
-- [ ] Dentro de la extensión, como mucho un enlace discreto en la página de ajustes (`options.html`), nunca en el panel ni
-  en los resultados, sin recordatorios ni ventanas emergentes. **Confirmar con el usuario** (con Labelic se decidió no
-  poner enlaces dentro de la extensión).
+- [ ] **Enlace «Apoya Mirilla» dentro de la extensión** (decidido por el usuario, 2026-09-27): discreto, en la página de
+  ajustes (`options.html`, que se crea en el hito 4.0) y en el pie del popup si cabe sin estorbar; nunca en el panel de
+  la página ni en los resultados, sin recordatorios, contadores ni ventanas emergentes. Abre la página de donación en una
+  pestaña nueva; no añade permisos ni rastreo. Texto traducido a todos los idiomas. Distinto de Labelic, que sigue sin
+  enlaces dentro de la extensión.
 - [ ] **Usuario**: consultar con su gestor cómo declarar los ingresos por donaciones.
 
 **Otras vías, solo ideas pendientes de validar** (investigadas el 2026-09-27; no se construye nada de pago sin demanda
