@@ -66,5 +66,3 @@ el historial (opcional, desactivable) se guarda solo en tu equipo (`storage.loca
 ## Licencia
 
 [MIT](LICENSE) © 2026 Ramón Coroso
-
-QR Code is a registered trademark of DENSO WAVE INCORPORATED.

@@ -57,7 +57,7 @@ y metieron adware. Nos diferenciamos por:
 
 ### Fase 3 — Publicación
 - [x] Nombre: Mirilla; ID de Firefox `mirilla@ramoncoroso.github.io` (**no se puede cambiar tras publicar**)
-- [x] Licencia MIT + nota de marca de Denso Wave en el README
+- [x] Licencia MIT
 - [x] Repo git propio en `plugin/` (rama `main`)
 - [x] Publicado en GitHub: https://github.com/ramoncoroso/mirilla (público, 2026-09-27)
 - [x] i18n: en (por defecto) + es, desde `locales/messages.ts` (nombre, descripción, menús e interfaz)

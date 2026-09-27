@@ -67,5 +67,3 @@ history (optional, can be turned off) is stored only on your device (`storage.lo
 ## License
 
 [MIT](LICENSE) © 2026 Ramón Coroso
-
-QR Code is a registered trademark of DENSO WAVE INCORPORATED.
