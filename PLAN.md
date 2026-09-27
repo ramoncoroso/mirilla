@@ -151,6 +151,14 @@ función con prueba en Chromium y, si aplica, en Firefox; y revisión de segurid
 - [ ] **Pagos cripto** (`bitcoin:`, `ethereum:`, `lightning:`; BIP 21 / EIP 681): dirección, importe y etiqueta; validación
   de la dirección de Bitcoin (checksum Base58Check / Bech32) y aviso de que los pagos son irreversibles.
 - [ ] Todos pasan por `lib/risk.ts` (el «!» del icono) y por el detector de caracteres ocultos.
+- [ ] **Añadidos EAN-2 y EAN-5** (los códigos pequeños junto al EAN de revistas y libros: número de edición o precio):
+  hoy no se leen porque zxing los ignora por defecto (`eanAddOnSymbol: 'Ignore'`). Activar `'Read'` y mostrar el añadido
+  en el resultado del producto (en libros ISBN, el EAN-5 que empieza por 5 es el precio en USD; por 0, en GBP).
+- [ ] **Cobertura de todos los formatos**: generar con el codificador de zxing un código de prueba de cada formato que sepa
+  crear (QR, Micro QR, rMQR, Data Matrix, Aztec, PDF417, EAN-13/8, UPC-A/E, Code 128/39/93, Codabar, ITF, DataBar...)
+  y comprobar en Chromium que cada uno se lee y se muestra bien (nombre del formato, tipo de contenido). Los formatos que
+  zxing lee pero no sabe crear (MaxiCode, Telepen, DX Film Edge, variantes de DataBar) se prueban con imágenes de muestra
+  si se encuentran con licencia libre; si no, se deja anotado.
 - [ ] Pruebas unitarias con ejemplos de las especificaciones y E2E en popup en/es.
 
 #### 4.4 Generador completo — tamaño L
