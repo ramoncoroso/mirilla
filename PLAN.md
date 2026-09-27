@@ -175,20 +175,21 @@ función con prueba en Chromium y, si aplica, en Firefox; y revisión de segurid
 - [ ] Pruebas unitarias (búsqueda, CSV) y E2E.
 
 #### 4.6 Idiomas: toda la Unión Europea y los más hablados del mundo — tamaño L, **al final** (cuando ya existan todos los textos nuevos)
-Decidido por el usuario (2026-09-27): las 24 lenguas oficiales de la UE y las más habladas del mundo. Hoy: en, es.
+Decidido por el usuario (2026-09-27): las lenguas oficiales de la UE y las más habladas del mundo, **solo las que admite
+Chrome** en `_locales` (lista oficial de developer.chrome.com, comprobada el 2026-09-27). Hoy: en, es.
 
-- [ ] **Unión Europea** (22 nuevas): alemán `de`, francés `fr`, italiano `it`, portugués `pt_PT`, neerlandés `nl`,
+- [ ] **Unión Europea** (20 nuevas): alemán `de`, francés `fr`, italiano `it`, portugués `pt_PT`, neerlandés `nl`,
   polaco `pl`, rumano `ro`, griego `el`, checo `cs`, eslovaco `sk`, húngaro `hu`, sueco `sv`, danés `da`, finés `fi`,
-  estonio `et`, letón `lv`, lituano `lt`, esloveno `sl`, croata `hr`, búlgaro `bg`, irlandés `ga` y maltés `mt`.
+  estonio `et`, letón `lv`, lituano `lt`, esloveno `sl`, croata `hr` y búlgaro `bg`. Quedan fuera irlandés y maltés
+  porque Chrome no los admite.
 - [ ] **Más hablados del mundo** (fuera de las anteriores): chino simplificado `zh_CN` y tradicional `zh_TW`, hindi `hi`,
-  árabe `ar`, bengalí `bn`, portugués de Brasil `pt_BR`, ruso `ru`, urdu `ur`, indonesio `id`, japonés `ja`,
+  árabe `ar`, bengalí `bn`, portugués de Brasil `pt_BR`, ruso `ru`, indonesio `id`, japonés `ja`,
   maratí `mr`, telugu `te`, turco `tr`, tamil `ta`, vietnamita `vi`, coreano `ko`, persa `fa`, filipino `fil`,
-  suajili `sw` y tailandés `th`.
+  suajili `sw` y tailandés `th`. Queda fuera el urdu porque Chrome no lo admite.
 - [ ] **Por tandas**, publicando cada una cuando esté revisada: (1) de, fr, it, pt_PT, pt_BR, nl, pl, zh_CN, zh_TW, ja, ko,
   ru, ar, hi, id, tr, vi; (2) el resto de la UE; (3) el resto de los más hablados.
-- [ ] **Comprobar qué idiomas admite cada navegador**: la lista de Chrome para `_locales` no parece incluir `ga`, `mt` ni
-  `ur` (Firefox sí). Si Chrome no los acepta, se incluyen solo en Firefox, sin romper la carga en Chrome.
-- [ ] **Derecha a izquierda (ar, fa, ur)**: la interfaz se invierte (`dir` a partir del mensaje predefinido
+- [ ] Un test que falle si se añade un idioma que no esté en la lista de Chrome.
+- [ ] **Derecha a izquierda (ar, fa)**: la interfaz se invierte (`dir` a partir del mensaje predefinido
   `@@bidi_dir`), pero URLs, códigos, IBAN y datos GS1 se muestran siempre aislados de izquierda a derecha (`dir="ltr"` +
   `unicode-bidi: isolate`), para no romper la protección contra el truco del texto invertido. Pruebas en árabe.
 - [ ] **Textos largos** (alemán, finés...) y escrituras no latinas (CJK, devanagari, bengalí, tamil, telugu, tailandés):
