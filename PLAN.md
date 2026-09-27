@@ -106,11 +106,14 @@ automáticas usan `<all_urls>` y no pueden pulsar menús ni atajos):
 
 Comparativa (2026-09-27) con QR Code Reader (el más valorado en Chrome), Qroole, QR Code Reader de Firefox y los
 generadores tipo Zovo: Mirilla va por delante en anti-phishing, GS1, SEPA, permisos y blindaje, pero le faltan siete
-funciones que los usuarios dan por supuestas. Se hacen todas. **No se copian** (van contra el posicionamiento):
+funciones que los usuarios dan por supuestas. Se hacen todas, junto con mejoras de seguridad de gran valor añadido
+(sistema de avisos, listas públicas en local, sitios de confianza, PDF, webmail, modo empresa). **No se copian** (van contra el posicionamiento):
 detección automática en todas las páginas (exige acceso a todas las webs) y QR «dinámicos» (dependen de un servidor).
 
-**Principios para todo lo nuevo**: todo local; **ningún permiso nuevo en el manifest** (cámara y pantalla se piden en
-el momento con el aviso del propio navegador); textos en `locales/messages.ts`; lógica pura con tests unitarios y cada
+**Principios para todo lo nuevo**: todo local (lo único que se descarga son las listas públicas, sin enviar nada, y las
+comprobaciones de «Investigar más», solo a petición); **ningún permiso nuevo que muestre aviso al instalar** (cámara y
+pantalla se piden en el momento con el aviso del propio navegador; `alarms` no muestra aviso; el acceso a webmail es un
+permiso opcional que solo se pide al activarlo); textos en `locales/messages.ts`; lógica pura con tests unitarios y cada
 función con prueba en Chromium y, si aplica, en Firefox; y revisión de seguridad de lo nuevo al final.
 
 **Orden** (cada hito se cierra con tests en verde, commit y push). Empieza por 4.0, el sistema de avisos:
@@ -138,6 +141,14 @@ Decidido por el usuario (2026-09-27). Todo en local: nada se consulta a servicio
   - WiFi abierta o con WEP → Precaución;
   - TLD que se confunden con ficheros (`.zip`, `.mov`) → Precaución.
 
+- [ ] **Mis sitios de confianza**: el usuario marca sus dominios (su banco, su ayuntamiento, su empresa) en una página de
+  ajustes nueva (`options.html`). Un QR que lleva a uno de ellos → ✅ «Es tu banco (sitio de confianza)»; uno que se le
+  parece (imitación, homógrafo, marca en otro dominio) → ⛔ «Imita a tu banco». Más preciso que cualquier lista genérica.
+- [ ] **Familiaridad**: con el historial de Mirilla (sin pedir el permiso de historial del navegador) y los sitios de
+  confianza, señal «Nunca habías ido a este dominio desde Mirilla». Es informativa sola, pero suma en la puntuación
+  combinada (el fraude casi siempre llega desde un dominio nuevo para la víctima). Si el historial está desactivado, se
+  explica que esta señal no está disponible.
+
 **Avisar mejor**
 - [ ] **Veredicto único y honesto** arriba de cada resultado, con los detalles debajo (los informativos, plegados; evita
   la fatiga de avisos). Mirilla **analiza la dirección, no la página** (no la visita, no conoce su contenido, antigüedad
@@ -152,6 +163,13 @@ Decidido por el usuario (2026-09-27). Todo en local: nada se consulta a servicio
   con segunda confirmación y «Copiar el enlace» como alternativa.
 - [ ] **Accesibles y accionables**: icono + etiqueta de texto además del color; cada aviso dice qué puede pasar y qué hacer.
 - [ ] **Icono de la extensión**: «!» rojo para Peligro (ya existe) y marca amarilla para Precaución.
+
+**Actuar con un clic**
+- [ ] **Denunciar**: en resultados en Peligro o Precaución, botón que abre ya rellenos los formularios de denuncia (Google
+  Safe Browsing, URLhaus; INCIBE en español) con la URL. Solo si el usuario lo pulsa; nada se envía solo.
+- [ ] **Limpiar rastreadores**: al abrir o copiar un enlace, quitar parámetros de seguimiento (`utm_*`, `fbclid`, `gclid`,
+  `mc_eid`, `igshid`…); lista con tests y opción para desactivarlo. Nunca se tocan parámetros necesarios (se limita a una
+  lista conocida).
 
 **Listas públicas de phishing y malware, comparadas en local** (decidido 2026-09-27)
 Ni consultar cada URL a un servicio (un tercero vería lo que escaneas) ni una lista fija en el paquete (caduca): Mirilla
@@ -197,7 +215,7 @@ descarga periódicamente una lista completa y compara en el equipo, como Safe Br
 - [ ] Descartado: OpenPhish (sus condiciones prohíben usarlo para desarrollar productos o para detección).
 - [ ] Sin listas negras fijas dentro del paquete (caducan en días y engordan el paquete): ver «Listas públicas» abajo.
 
-#### 4.1 Página de escaneo: cámara y pantalla — tamaño L
+#### 4.1 Página de escaneo: cámara, pantalla y PDF — tamaño L
 - [ ] Nueva página de la extensión `scan.html`, abierta en **su propia pestaña** desde el popup («Escanear con la cámara»,
   «Escanear pantalla u otra ventana»). No en el popup: Firefox lo cierra al salir el aviso de permisos y Chrome al abrir
   el selector de pantalla.
@@ -205,6 +223,10 @@ descarga periódicamente una lista completa y compara en el equipo, como Safe Br
   canvas → `decodeImageData`), se para al leer y al ocultar la pestaña (`visibilitychange`); nunca se graba ni se guarda
   un fotograma.
 - [ ] Pantalla: `getDisplayMedia()`; el mismo bucle de lectura; se deja de compartir al leer o al cerrar.
+- [ ] **PDF** (el vector número uno del quishing: un PDF adjunto con un QR dentro, que los filtros de correo no suelen
+  leer y en cuyo visor no se puede inyectar): abrir o arrastrar un PDF en la página de escaneo (también desde el popup) y
+  analizar todas sus páginas en local con **pdf.js** incluido en el paquete (Apache-2.0; sin código remoto; revisar que
+  su build cumple la CSP de MV3). Resultados por página; los peligrosos arriba. Límites de páginas y de tamaño.
 - [ ] Resultados con el mismo `renderCodes` (anti-phishing, GS1...), historial vía background.
 - [ ] **Primero, una prueba de concepto** de ambas APIs en páginas de extensión de Chrome y Firefox, para confirmar que no
   hace falta ningún permiso en el manifest. Si hiciera falta alguno, se para y se consulta.
@@ -264,7 +286,32 @@ descarga periódicamente una lista completa y compara en el equipo, como Safe Br
 - [ ] Probablemente en una página propia (`history.html`) con un acceso desde el popup.
 - [ ] Pruebas unitarias (búsqueda, CSV) y E2E.
 
-#### 4.6 Idiomas: toda la Unión Europea y los más hablados del mundo — tamaño L, **al final** (cuando ya existan todos los textos nuevos)
+#### 4.6 Protección del webmail (opcional) — tamaño L
+- [ ] Función que el usuario activa en los ajustes: analiza automáticamente los QR de los emails que abre en **Gmail** y
+  **Outlook web** (donde llegan los ataques) y pone junto a cada QR una etiqueta con el veredicto (en el mismo shadow DOM
+  blindado).
+- [ ] **Permisos opcionales** (`optional_host_permissions`: `mail.google.com`, `*.googleusercontent.com`,
+  `outlook.live.com`, `outlook.office.com`...), pedidos solo al activarla (`permissions.request`, con gesto del usuario);
+  la instalación normal sigue sin permisos de acceso a webs. El content script se registra dinámicamente solo si se
+  conceden (`scripting.registerContentScripts`) y se retira al desactivarla.
+- [ ] Adjuntos PDF: enlace directo al escáner de PDF (4.1), sin descargarlos automáticamente.
+- [ ] Todo en local; nada del correo sale del equipo. Política de privacidad y fichas actualizadas.
+- [ ] Riesgo de mantenimiento: cada webmail cambia su DOM; detector aislado por proveedor, con pruebas sobre páginas
+  guardadas (fixtures) y aviso claro si deja de funcionar.
+
+#### 4.7 Modo empresa (políticas gestionadas) — tamaño M
+- [ ] Ajustes que el departamento de IT puede imponer al desplegar Mirilla (Chrome: `storage.managed` con
+  `managed_schema`; Firefox: `policies.json` → `3rdparty.Extensions`): listas públicas siempre activas, **bloquear abrir
+  enlaces en Peligro**, dominios de la organización como sitios de confianza, marcas propias a vigilar, desactivar el
+  historial o «Investigar más», y activar la protección del webmail.
+- [ ] Sin telemetría ni envío de informes: el modo empresa no cambia la promesa de privacidad.
+- [ ] Documentación para administradores (`docs/enterprise.md`, en/es) con ejemplos de política para Chrome (JSON / GPO) y
+  Firefox (`policies.json`).
+- [ ] Pruebas: lógica de ajustes gestionados con un almacenamiento falso en unitarios; prueba manual con políticas reales
+  en Chrome y Firefox (necesitan privilegios de administrador), anotada en la comprobación manual antes de publicar.
+- [ ] Posible vía de negocio en el futuro (soporte o funciones para empresas); por ahora, gratis y abierto.
+
+#### 4.8 Idiomas: toda la Unión Europea y los más hablados del mundo — tamaño L, **al final** (cuando ya existan todos los textos nuevos)
 Decidido por el usuario (2026-09-27): las lenguas oficiales de la UE y las más habladas del mundo, **solo las que admite
 Chrome** en `_locales` (lista oficial de developer.chrome.com, comprobada el 2026-09-27). Hoy: en, es.
 
@@ -289,16 +336,18 @@ Chrome** en `_locales` (lista oficial de developer.chrome.com, comprobada el 202
   (nombre ≤ 45, descripción ≤ 132) y se amplían a todos los idiomas.
 - [ ] Fichas de las tiendas traducidas en cada idioma; capturas localizadas al menos para la tanda 1.
 
-#### 4.7 Cierre de la fase
+#### 4.9 Cierre de la fase
 - [ ] Revisión de seguridad y buenas prácticas de todo lo nuevo (mismo método que la anterior: dos revisores
-  independientes y verificación de cada hallazgo). Puntos que vigilar: permisos de cámara y pantalla, CSV, logo subido
-  por el usuario, exportación SVG, `.ics`, secreto de 2FA.
+  independientes y verificación de cada hallazgo). Puntos que vigilar: permisos de cámara y pantalla, PDF (pdf.js con
+  ficheros hostiles), permisos opcionales y content script del webmail, políticas gestionadas, firma de las listas, CSV,
+  logo subido por el usuario, exportación SVG, `.ics`, secreto de 2FA.
 - [ ] Capturas de tienda y galería «en marcha» con las funciones nuevas; textos de las fichas y política de privacidad.
 - [ ] Nueva versión y comprobación manual antes de publicar (ampliada con cámara y pantalla).
 
 **Decisión abierta**: ¿publicar ya la 1.0.0 y sacar esto como 1.1+, o esperar y publicar todo junto? Recomendación:
 publicar la 1.0.0 en cuanto el usuario tenga tiempo (está completa y revisada) y entregar la Fase 4 en versiones
-sucesivas (1.1 con 4.1–4.3; 1.2 con 4.4–4.6), para empezar a tener usuarios y opiniones cuanto antes.
+sucesivas (1.1 con 4.0–4.3; 1.2 con 4.4–4.5; 1.3 con 4.6–4.7; los idiomas por tandas), para empezar a tener usuarios y
+opiniones cuanto antes.
 
 ### Fase 5 — Opcional (Elixir/Phoenix)
 - [ ] Lector web en labelic.com con LiveView + hook JS (zxing-wasm en el cliente) → SEO y móvil
