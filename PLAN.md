@@ -174,10 +174,29 @@ función con prueba en Chromium y, si aplica, en Firefox; y revisión de segurid
 - [ ] Probablemente en una página propia (`history.html`) con un acceso desde el popup.
 - [ ] Pruebas unitarias (búsqueda, CSV) y E2E.
 
-#### 4.6 Más idiomas — tamaño M, **al final** (cuando ya existan todos los textos nuevos)
-- [ ] Francés, alemán, italiano, portugués (pt_BR y pt_PT) y neerlandés, en la interfaz y en las fichas de las tiendas.
-- [ ] Los tests ya comprueban claves, sustituciones `$1` y límites de longitud de nombre y descripción; se amplían a todos
-  los idiomas. Pedir una revisión nativa antes de publicar cada idioma (queda anotado en `store/listing.md`).
+#### 4.6 Idiomas: toda la Unión Europea y los más hablados del mundo — tamaño L, **al final** (cuando ya existan todos los textos nuevos)
+Decidido por el usuario (2026-09-27): las 24 lenguas oficiales de la UE y las más habladas del mundo. Hoy: en, es.
+
+- [ ] **Unión Europea** (22 nuevas): alemán `de`, francés `fr`, italiano `it`, portugués `pt_PT`, neerlandés `nl`,
+  polaco `pl`, rumano `ro`, griego `el`, checo `cs`, eslovaco `sk`, húngaro `hu`, sueco `sv`, danés `da`, finés `fi`,
+  estonio `et`, letón `lv`, lituano `lt`, esloveno `sl`, croata `hr`, búlgaro `bg`, irlandés `ga` y maltés `mt`.
+- [ ] **Más hablados del mundo** (fuera de las anteriores): chino simplificado `zh_CN` y tradicional `zh_TW`, hindi `hi`,
+  árabe `ar`, bengalí `bn`, portugués de Brasil `pt_BR`, ruso `ru`, urdu `ur`, indonesio `id`, japonés `ja`,
+  maratí `mr`, telugu `te`, turco `tr`, tamil `ta`, vietnamita `vi`, coreano `ko`, persa `fa`, filipino `fil`,
+  suajili `sw` y tailandés `th`.
+- [ ] **Por tandas**, publicando cada una cuando esté revisada: (1) de, fr, it, pt_PT, pt_BR, nl, pl, zh_CN, zh_TW, ja, ko,
+  ru, ar, hi, id, tr, vi; (2) el resto de la UE; (3) el resto de los más hablados.
+- [ ] **Comprobar qué idiomas admite cada navegador**: la lista de Chrome para `_locales` no parece incluir `ga`, `mt` ni
+  `ur` (Firefox sí). Si Chrome no los acepta, se incluyen solo en Firefox, sin romper la carga en Chrome.
+- [ ] **Derecha a izquierda (ar, fa, ur)**: la interfaz se invierte (`dir` a partir del mensaje predefinido
+  `@@bidi_dir`), pero URLs, códigos, IBAN y datos GS1 se muestran siempre aislados de izquierda a derecha (`dir="ltr"` +
+  `unicode-bidi: isolate`), para no romper la protección contra el truco del texto invertido. Pruebas en árabe.
+- [ ] **Textos largos** (alemán, finés...) y escrituras no latinas (CJK, devanagari, bengalí, tamil, telugu, tailandés):
+  capturas del popup y del panel en varios idiomas para detectar desbordes.
+- [ ] **Traducciones**: borrador hecho aquí para todos; **revisión nativa obligatoria antes de publicar cada idioma**
+  (lista de revisados en `store/listing.md`). Los tests ya comprueban claves, sustituciones `$1` y los límites de la tienda
+  (nombre ≤ 45, descripción ≤ 132) y se amplían a todos los idiomas.
+- [ ] Fichas de las tiendas traducidas en cada idioma; capturas localizadas al menos para la tanda 1.
 
 #### 4.7 Cierre de la fase
 - [ ] Revisión de seguridad y buenas prácticas de todo lo nuevo (mismo método que la anterior: dos revisores
