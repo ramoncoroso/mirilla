@@ -72,3 +72,5 @@ history (optional, can be turned off) is stored only on your device (`storage.lo
 ## License
 
 [MIT](LICENSE) © 2026 Ramón Coroso
+
+Made by the author of [Labelic](https://labelic.com), a label and barcode design tool. Mirilla is an independent project: it has no ads, no tracking and no links to Labelic inside the extension.

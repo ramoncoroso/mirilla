@@ -3,7 +3,7 @@
 > Hoja de ruta del proyecto. Las casillas marcan lo hecho.
 
 **Fecha:** 2026-09-27
-**Estado:** Fases 1, 1.5 y 2 hechas (salvo el enlace a Labelic, pendiente de decidir) → siguiente: Fase 3 (publicación)
+**Estado:** Fases 1, 1.5 y 2 hechas → siguiente: Fase 3 (publicación)
 
 ## Posicionamiento
 
@@ -54,7 +54,7 @@ y metieron adware. Nos diferenciamos por:
 - [x] Prefijo GS1 de EAN/UPC con nombre de país traducido (`Intl.DisplayNames`), ISBN/ISMN/ISSN, cupones y distribución restringida, con la aclaración de que no es el país de fabricación
 - [x] Generar el QR de la página actual (zxing-wasm/writer bajo demanda), descargar PNG y copiar imagen
 - [x] Pruebas: 20 unitarias nuevas, 8 en Chromium (en/es, ida y vuelta generar→leer) y 1 en Firefox
-- [ ] Enlace discreto a labelic.com en los resultados GS1 ("Genera etiquetas GS1") — **pendiente de decidir con el usuario** (Mirilla es marca independiente)
+- [x] Relación con Labelic (decidido 2026-09-27): **solo una mención en el README** ("hecho por el autor de Labelic"); ningún enlace dentro de la extensión
 
 ### Fase 3 — Publicación
 - [x] Nombre: Mirilla; ID de Firefox `mirilla@ramoncoroso.github.io` (**no se puede cambiar tras publicar**)

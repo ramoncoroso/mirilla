@@ -71,3 +71,5 @@ el historial (opcional, desactivable) se guarda solo en tu equipo (`storage.loca
 ## Licencia
 
 [MIT](LICENSE) © 2026 Ramón Coroso
+
+Hecho por el autor de [Labelic](https://labelic.com), herramienta de diseño de etiquetas y códigos de barras. Mirilla es un proyecto independiente: sin anuncios, sin rastreo y sin enlaces a Labelic dentro de la extensión.
