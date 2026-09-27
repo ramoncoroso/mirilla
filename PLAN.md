@@ -62,7 +62,7 @@ y metieron adware. Nos diferenciamos por:
 - [x] Repo git propio en `plugin/` (rama `main`)
 - [x] Publicado en GitHub: https://github.com/ramoncoroso/mirilla (público, 2026-09-27)
 - [x] i18n: en (por defecto) + es, desde `locales/messages.ts` (nombre, descripción, menús e interfaz)
-- [x] Versión 1.0.0
+- [x] Versión 1.0.0 (confirmada por el usuario 2026-09-27)
 - [x] Política de privacidad: `PRIVACY.md` / `PRIVACY.es.md` (URL: https://github.com/ramoncoroso/mirilla/blob/main/PRIVACY.md)
 - [x] Textos de las fichas en/es, propósito único y justificación de permisos: `store/listing.md`
 - [x] Capturas 1280×800 en/es, promo 440×280 y 1400×560, logo 300×300: `npm run store:assets` → `store/assets/`
