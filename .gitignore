@@ -1,0 +1,8 @@
+node_modules
+.output
+.wxt
+web-ext.config.ts
+.output-e2e
+test-results
+playwright-report
+HANDOFF.md

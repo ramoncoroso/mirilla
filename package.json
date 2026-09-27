@@ -1,0 +1,32 @@
+{
+  "name": "mirilla",
+  "description": "Lector de códigos QR y de barras privado y anti-quishing para Chrome y Firefox",
+  "license": "MIT",
+  "author": "Ramón Coroso",
+  "repository": "github:ramoncoroso/mirilla",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "wxt",
+    "dev:firefox": "wxt -b firefox",
+    "build": "wxt build",
+    "build:firefox": "wxt build -b firefox",
+    "zip": "wxt zip",
+    "zip:firefox": "wxt zip -b firefox",
+    "compile": "tsc --noEmit",
+    "test": "vitest run",
+    "test:e2e": "E2E=1 wxt build && playwright test",
+    "postinstall": "wxt prepare"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^26.6.3",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.2",
+    "wxt": "^0.21.4"
+  },
+  "dependencies": {
+    "zxing-wasm": "^3.1.4"
+  }
+}

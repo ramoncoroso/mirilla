@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mirilla</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <main>
+      <div class="scan-actions">
+        <button id="select" class="qr-btn qr-btn-primary big" type="button">
+          Seleccionar área <kbd id="shortcut"></kbd>
+        </button>
+        <button id="scan" class="qr-btn big" type="button">Buscar en lo visible</button>
+      </div>
+
+      <label id="drop" class="drop" tabindex="0">
+        <input id="file" type="file" accept="image/*" hidden />
+        Pega una imagen (Ctrl+V), arrástrala aquí o <u>elige un fichero</u>
+      </label>
+
+      <p id="status" class="status" role="status" hidden></p>
+      <div id="results"></div>
+
+      <details id="history-box">
+        <summary>Historial</summary>
+        <ul id="history"></ul>
+        <div class="history-foot">
+          <label><input id="history-enabled" type="checkbox" /> Guardar historial</label>
+          <button id="history-clear" class="linkish" type="button">Borrar</button>
+        </div>
+      </details>
+    </main>
+    <footer>Todo se procesa en tu navegador. Nada sale de tu equipo.</footer>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>
