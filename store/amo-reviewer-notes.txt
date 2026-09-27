@@ -1,0 +1,23 @@
+Mirilla 1.0.0 — notes for reviewers
+
+Build instructions (Node.js 22, npm 10, Linux/macOS):
+  npm ci
+  npm run build:firefox
+Output: .output/firefox-mv3/ — identical, file by file, to the submitted package.
+
+Tooling: WXT (Vite) + TypeScript. The code is bundled and minified by Vite; the readable sources
+are in the attached zip and at https://github.com/ramoncoroso/mirilla
+
+WebAssembly: copied unmodified from the npm package zxing-wasm@3.1.4
+(zxing-cpp compiled with Emscripten, Apache-2.0; https://github.com/Sec-ant/zxing-wasm).
+SHA-256:
+  zxing_reader.wasm  e8af31edb56d0522f4de74495839385ef019ba8bc90d38e5ecb2f18795d86fb2  (= node_modules/zxing-wasm/dist/reader/zxing_reader.wasm)
+  zxing_writer.wasm  f78be8b66f1f6d6aba6ce1e34180d36bf509f73edc26ca542810f92c08dc5950  (= node_modules/zxing-wasm/dist/writer/zxing_writer.wasm)
+
+Permissions: activeTab, contextMenus, scripting, storage. No host permissions and no remote code.
+Network: only fetching an image the user right-clicks (to decode it), and opening a link only
+when the user clicks "Open". No analytics, no data collection.
+
+How to test: open any page with a QR code and right-click the image -> "Read code from this image",
+or press Alt+Shift+Q and drag over the code. Sample codes:
+https://github.com/ramoncoroso/mirilla/tree/main/tests/e2e/fixtures

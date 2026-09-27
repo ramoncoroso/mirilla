@@ -9,6 +9,10 @@ export default defineConfig({
   manifestVersion: 3,
   // La build de tests E2E va aparte: lleva <all_urls> porque Playwright no puede conceder activeTab.
   outDir: process.env.E2E ? '.output-e2e' : '.output',
+  zip: {
+    // El zip de fuentes (para la revisión de Firefox) no respeta .gitignore: se excluye a mano lo privado y lo generado.
+    excludeSources: ['HANDOFF.md', 'test-results/**', 'playwright-report/**', '.output-e2e/**', 'store/assets/**'],
+  },
   // __E2E__ se sustituye al compilar: en la build normal el código de pruebas desaparece.
   vite: () => ({ define: { __E2E__: JSON.stringify(!!process.env.E2E) } }),
   hooks: {

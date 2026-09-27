@@ -219,4 +219,5 @@ void (async () => {
 })();
 
 declare const __E2E__: boolean;
-if (__E2E__) void import('@/lib/e2e-bridge').then((m) => m.mount());
+// Solo Firefox lo necesita (geckodriver no puede ejecutar scripts en páginas de extensión).
+if (__E2E__ && import.meta.env.FIREFOX) void import('@/lib/e2e-bridge').then((m) => m.mount());

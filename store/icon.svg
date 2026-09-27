@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Misma geometría que public/icon/*.png -->
+  <rect width="512" height="512" rx="110" fill="#1a73e8"/>
+  <g fill="#fff">
+    <path d="M86 86h150v150H86zM276 86h150v150H276zM86 276h150v150H86z"/>
+    <path d="M290 290h44v44h-44zM360 290h44v44h-44zM290 360h44v44h-44zM390 390h44v44h-44zM330 400h44v44h-44z"/>
+  </g>
+  <g fill="#1a73e8">
+    <path d="M107 107h108v108H107zM297 107h108v108H297zM107 297h108v108H107z"/>
+  </g>
+  <g fill="#fff">
+    <path d="M128 128h66v66h-66zM318 128h66v66h-66zM128 318h66v66h-66z"/>
+  </g>
+  <rect x="40" y="246" width="432" height="20" rx="10" fill="#ff5252"/>
+</svg>

@@ -41,6 +41,8 @@ npm run zip / zip:firefox   # paquetes para las tiendas
 npm test               # unitarios (parseo y análisis de URLs)
 npm run test:e2e       # Playwright + Chromium con la extensión cargada
 npm run test:firefox   # Selenium + geckodriver + Firefox con la extensión instalada
+npm run store:assets   # capturas e imágenes promocionales de las tiendas → store/assets/
+npm run store:notes    # notas para los revisores de Firefox → store/amo-reviewer-notes.txt
 ```
 
 Cargar a mano: Chrome → `chrome://extensions` → modo desarrollador → *Cargar descomprimida* → `.output/chrome-mv3`.
@@ -67,6 +69,7 @@ La build E2E (`E2E=1`, en `.output-e2e/`) añade `<all_urls>` (la automatizació
 
 Mirilla no recoge, envía ni vende ningún dato. Las imágenes se decodifican en tu navegador y
 el historial (opcional, desactivable) se guarda solo en tu equipo (`storage.local`).
+Política completa: [PRIVACY.es.md](PRIVACY.es.md).
 
 ## Licencia
 

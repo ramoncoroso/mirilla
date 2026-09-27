@@ -3,7 +3,7 @@
 > Hoja de ruta del proyecto. Las casillas marcan lo hecho.
 
 **Fecha:** 2026-09-27
-**Estado:** Fases 1, 1.5 y 2 hechas → siguiente: Fase 3 (publicación)
+**Estado:** Fases 1, 1.5 y 2 hechas; Fase 3 preparada → falta subir a las tiendas (lo hace el usuario con sus cuentas)
 
 ## Posicionamiento
 
@@ -56,17 +56,23 @@ y metieron adware. Nos diferenciamos por:
 - [x] Pruebas: 20 unitarias nuevas, 8 en Chromium (en/es, ida y vuelta generar→leer) y 1 en Firefox
 - [x] Relación con Labelic (decidido 2026-09-27): **solo una mención en el README** ("hecho por el autor de Labelic"); ningún enlace dentro de la extensión
 
-### Fase 3 — Publicación
+### Fase 3 — Publicación ⏳ (preparada 2026-09-27; falta subir a las tiendas)
 - [x] Nombre: Mirilla; ID de Firefox `mirilla@ramoncoroso.github.io` (**no se puede cambiar tras publicar**)
 - [x] Licencia MIT
 - [x] Repo git propio en `plugin/` (rama `main`)
 - [x] Publicado en GitHub: https://github.com/ramoncoroso/mirilla (público, 2026-09-27)
 - [x] i18n: en (por defecto) + es, desde `locales/messages.ts` (nombre, descripción, menús e interfaz)
-- [ ] Nombre comercial, icono definitivo, capturas 1280×800 y textos de ficha
-- [ ] Política de privacidad (corta: "no recogemos nada") — p. ej. GitHub Pages del repo o la sección Privacidad del README
-- [ ] Chrome Web Store (pago único de 5 $) — `npm run zip`
-- [ ] Firefox AMO — `npm run zip:firefox` (+ zip de fuentes con instrucciones de build, AMO lo pide)
-- [ ] Edge Add-ons (reutiliza el zip de Chrome)
+- [x] Versión 1.0.0
+- [x] Política de privacidad: `PRIVACY.md` / `PRIVACY.es.md` (URL: https://github.com/ramoncoroso/mirilla/blob/main/PRIVACY.md)
+- [x] Textos de las fichas en/es, propósito único y justificación de permisos: `store/listing.md`
+- [x] Capturas 1280×800 en/es, promo 440×280 y 1400×560, logo 300×300: `npm run store:assets` → `store/assets/`
+- [x] Paquetes: `npm run zip` (Chrome/Edge) y `npm run zip:firefox` (+ zip de fuentes, sin ficheros privados, reproducible byte a byte)
+- [x] Notas para revisores de Firefox con SHA-256 verificados de los WASM: `npm run store:notes`
+- [ ] **Usuario**: cuenta de desarrollador de Chrome Web Store (pago único de 5 $) y subir `mirilla-1.0.0-chrome.zip`
+- [ ] **Usuario**: cuenta en addons.mozilla.org y subir `mirilla-1.0.0-firefox.zip` + `mirilla-1.0.0-sources.zip`
+- [ ] **Usuario**: cuenta en Microsoft Partner Center (Edge, gratis) y subir el zip de Chrome
+- [ ] Tras publicar: enlazar las fichas desde el README; etiqueta `v1.0.0` y release en GitHub
+- [ ] Icono definitivo (opcional): el actual es un QR genérico; uno con la metáfora de la mirilla reforzaría la marca
 
 ### Fase 4 — Opcional (Elixir/Phoenix)
 - [ ] Lector web en labelic.com con LiveView + hook JS (zxing-wasm en el cliente) → SEO y móvil

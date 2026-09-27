@@ -5,7 +5,7 @@
   "author": "Ramón Coroso",
   "repository": "github:ramoncoroso/mirilla",
   "private": true,
-  "version": "0.1.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "wxt",
@@ -18,7 +18,9 @@
     "test": "vitest run",
     "test:e2e": "E2E=1 wxt build && playwright test",
     "postinstall": "wxt prepare",
-    "test:firefox": "E2E=1 wxt zip -b firefox && MIRILLA_XPI=.output-e2e/mirilla-$npm_package_version-firefox.zip node --test --test-concurrency=1 tests/firefox/smoke.test.ts"
+    "test:firefox": "E2E=1 wxt zip -b firefox && MIRILLA_XPI=.output-e2e/mirilla-$npm_package_version-firefox.zip node --test --test-concurrency=1 tests/firefox/smoke.test.ts",
+    "store:assets": "E2E=1 wxt build && playwright test -c store/playwright.config.ts",
+    "store:notes": "wxt build -b firefox && node store/reviewer-notes.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",

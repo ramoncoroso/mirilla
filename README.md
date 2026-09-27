@@ -42,6 +42,8 @@ npm run zip / zip:firefox   # store packages
 npm test               # unit tests (content parsing and URL analysis)
 npm run test:e2e       # Playwright + Chromium with the extension loaded
 npm run test:firefox   # Selenium + geckodriver + Firefox with the extension installed
+npm run store:assets   # store screenshots and promo images → store/assets/
+npm run store:notes    # notes for Firefox reviewers → store/amo-reviewer-notes.txt
 ```
 
 Load it manually: Chrome → `chrome://extensions` → Developer mode → *Load unpacked* → `.output/chrome-mv3`.
@@ -68,6 +70,7 @@ The E2E build (`E2E=1`, in `.output-e2e/`) adds `<all_urls>` (automation cannot 
 
 Mirilla does not collect, send or sell any data. Images are decoded in your browser and the
 history (optional, can be turned off) is stored only on your device (`storage.local`).
+Full policy: [PRIVACY.md](PRIVACY.md).
 
 ## License
 
