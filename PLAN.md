@@ -352,3 +352,34 @@ idiomas pueden entrar por tandas en versiones posteriores si la revisión nativa
 ### Fase 5 — Opcional (Elixir/Phoenix)
 - [ ] Lector web en labelic.com con LiveView + hook JS (zxing-wasm en el cliente) → SEO y móvil
 - [ ] Backend Phoenix + Postgres solo si una función lo necesita: reputación de URLs, cuentas o sincronización del historial
+
+### Fase 6 — Monetización
+
+**Decidido (2026-09-27): donaciones voluntarias.** Mirilla seguirá siendo gratis y abierta, sin anuncios ni venta de
+datos (romperían su propuesta). Referencia de mercado: las extensiones lectoras de QR son prácticamente todas gratuitas.
+
+**Donaciones** (se prepara junto a la publicación):
+- [ ] **Usuario**: crear las cuentas de donación. Recomendado **GitHub Sponsors** (sin comisión para cuentas personales;
+  el botón «Sponsor» aparece en el repo) y, como alternativa sin cuenta de GitHub para el donante, Ko-fi u Open Collective.
+- [ ] `.github/FUNDING.yml` con los enlaces (muestra el botón «Sponsor» en GitHub).
+- [ ] Sección «Apoya Mirilla» en los dos README y una línea en las fichas de las tiendas (las políticas de Chrome, Firefox y
+  Edge permiten enlaces de donación).
+- [ ] Dentro de la extensión, como mucho un enlace discreto en la página de ajustes (`options.html`), nunca en el panel ni
+  en los resultados, sin recordatorios ni ventanas emergentes. **Confirmar con el usuario** (con Labelic se decidió no
+  poner enlaces dentro de la extensión).
+- [ ] **Usuario**: consultar con su gestor cómo declarar los ingresos por donaciones.
+
+**Otras vías, solo ideas pendientes de validar** (investigadas el 2026-09-27; no se construye nada de pago sin demanda
+comprobada: publicar gratis, medir instalaciones, hablar con 5–10 posibles clientes, página con lista de espera):
+- **Empresas («Mirilla para equipos», open core)**: la extensión sigue gratis; de pago, una consola de administración,
+  informes agregados con consentimiento, integración SIEM y soporte. Referencias: seguridad de correo 2–15 $/usuario/mes
+  (Proofpoint Essentials 3–6 $, Barracuda ~5 $); las extensiones de seguridad de navegador para empresas (LayerX, Push,
+  SquareX) venden por presupuesto. Orientativo para Mirilla: 1–2 €/usuario/mes o tarifa plana para pymes. Las partes de
+  pago irían en otro repo y licencia (MIT permite copiar lo publicado).
+- **GS1 Pro (validación de etiquetas antes de imprimir)**: sintaxis GS1, dígitos de control, validación masiva e informes;
+  encaja con Labelic. Referencia: BarTender 199–546 $/año; orientativo 99–199 €/año por usuario.
+- **Datos de amenazas**: lista de URLs de quishing a partir de denuncias voluntarias de los usuarios (nunca de lo que
+  escanean).
+- Cobro, si llega: Chrome Web Store ya no gestiona pagos → web propia con un «merchant of record» (Paddle, Lemon Squeezy)
+  que gestiona el IVA europeo, y licencia firmada verificada en local (sin llamar a ningún servidor).
+
