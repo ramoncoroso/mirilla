@@ -1,60 +1,69 @@
 # Mirilla
 
-**Mira adónde lleva un código antes de abrirlo.**
+**English** · [Español](README.es.md)
 
-Extensión para Chrome y Firefox que lee códigos QR y de barras de cualquier web y te
-avisa si el enlace intenta engañarte (*quishing*). Todo se procesa en tu navegador con
-[zxing-wasm](https://github.com/Sec-ant/zxing-wasm): sin servidores, sin cuentas, sin analítica.
+**See where a code leads before you open it.**
 
-Permisos: `activeTab`, `contextMenus`, `scripting` y `storage`. **Ningún permiso de acceso a
-webs**: la extensión solo toca la pestaña en la que la usas, y solo cuando tú la invocas.
+A Chrome and Firefox extension that reads QR codes and barcodes from any web page and warns
+you when a link is trying to trick you (*quishing*). Everything runs inside your browser with
+[zxing-wasm](https://github.com/Sec-ant/zxing-wasm): no servers, no accounts, no analytics.
 
-## Funciones
+*Mirilla* is Spanish for the peephole in a door: you look before you open.
 
-- Clic derecho en una imagen → **Leer código de esta imagen** (si CORS lo impide, recorta la imagen de una captura).
-- **Seleccionar área** (popup, menú contextual o `Alt+Shift+Q`): arrastra sobre cualquier cosa visible (canvas, vídeo, CSS...).
-- **Buscar en lo visible**: todos los códigos de la pestaña de una vez.
-- Pegar (Ctrl+V), arrastrar o elegir una imagen en el popup.
-- Resultados por tipo: enlace, WiFi, contacto (vCard/MECARD), email, teléfono, SMS, geo, pago SEPA (EPC).
-- Análisis anti-quishing de URLs: esquemas peligrosos, `usuario@dominio`, punycode, IPs, http, acortadores.
-- Historial local (50 lecturas), desactivable.
+Permissions: `activeTab`, `contextMenus`, `scripting` and `storage`. **No host permissions**:
+the extension only touches the tab you use it on, and only when you invoke it.
 
-## Desarrollo
+## Features
+
+- Right-click an image → **Read code from this image** (if CORS blocks it, the image is cropped from a tab screenshot).
+- **Select area** (popup, context menu or `Alt+Shift+Q`): drag over anything visible (canvas, video, CSS backgrounds...).
+- **Scan visible area**: every code in the tab at once.
+- Paste (Ctrl+V), drop or pick an image in the popup.
+- Results by content type: link, Wi-Fi, contact (vCard/MECARD), email, phone, SMS, geo, SEPA payment (EPC).
+- Anti-quishing URL checks: dangerous schemes, `user@domain` tricks, punycode lookalikes, raw IPs, plain http, URL shorteners.
+- Reads QR, Micro QR, Data Matrix, Aztec, PDF417, EAN/UPC, Code 128/39/93, ITF and more.
+- Local history (last 50 reads), can be turned off.
+
+The extension UI is currently Spanish only; English is on the way.
+
+Requirements: current Chrome/Edge, or Firefox ≥140 (Firefox for Android ≥142).
+
+## Development
 
 ```sh
 npm install
-npm run dev            # Chrome con recarga en caliente
+npm run dev            # Chrome with hot reload
 npm run dev:firefox
 npm run build          # .output/chrome-mv3
 npm run build:firefox  # .output/firefox-mv3
-npm run zip / zip:firefox   # paquetes para las tiendas
-npm test               # unitarios (parseo y análisis de URLs)
-npm run test:e2e       # Playwright + Chromium con la extensión cargada
+npm run zip / zip:firefox   # store packages
+npm test               # unit tests (content parsing and URL analysis)
+npm run test:e2e       # Playwright + Chromium with the extension loaded
 ```
 
-Cargar a mano: Chrome → `chrome://extensions` → modo desarrollador → *Cargar descomprimida* → `.output/chrome-mv3`.
-Firefox → `about:debugging#/runtime/this-firefox` → *Cargar complemento temporal* → `.output/firefox-mv3/manifest.json`.
+Load it manually: Chrome → `chrome://extensions` → Developer mode → *Load unpacked* → `.output/chrome-mv3`.
+Firefox → `about:debugging#/runtime/this-firefox` → *Load Temporary Add-on* → `.output/firefox-mv3/manifest.json`.
 
-## Estructura
+## Project layout
 
-| Ruta | Qué hace |
+| Path | What it does |
 |---|---|
-| `entrypoints/background.ts` | Menús, atajo, captura de pestaña, recorte y decodificación |
-| `entrypoints/overlay.ts` | Se inyecta bajo demanda: selector de área y panel de resultados (shadow DOM cerrado) |
-| `entrypoints/popup/` | Popup: botones, pegar/arrastrar, historial |
-| `lib/decode.ts` | zxing-wasm; el `.wasm` va en el paquete (MV3 prohíbe código remoto) |
-| `lib/parse.ts` | Clasifica el contenido (WiFi, vCard, SEPA...) |
-| `lib/url-safety.ts` | Heurísticas anti-phishing, sin red |
-| `lib/render.ts` | Pinta resultados (compartido popup/panel); todo como texto, nunca HTML |
+| `entrypoints/background.ts` | Context menus, shortcut, tab capture, cropping and decoding |
+| `entrypoints/overlay.ts` | Injected on demand: area selector and results panel (closed shadow DOM) |
+| `entrypoints/popup/` | Popup: actions, paste/drop, history |
+| `lib/decode.ts` | zxing-wasm; the `.wasm` ships inside the package (MV3 forbids remote code) |
+| `lib/parse.ts` | Classifies the content (Wi-Fi, vCard, SEPA...) |
+| `lib/url-safety.ts` | Anti-phishing heuristics, fully offline |
+| `lib/render.ts` | Renders results (shared by popup and panel); always as text, never as HTML |
 
-La build E2E (`E2E=1`, en `.output-e2e/`) añade `<all_urls>` porque Playwright no puede conceder `activeTab`. **No publicarla.**
+The E2E build (`E2E=1`, in `.output-e2e/`) adds `<all_urls>` because Playwright cannot grant `activeTab`. **Never publish it.**
 
-## Privacidad
+## Privacy
 
-Mirilla no recoge, envía ni vende ningún dato. Las imágenes se decodifican en tu navegador y
-el historial (opcional, desactivable) se guarda solo en tu equipo (`storage.local`).
+Mirilla does not collect, send or sell any data. Images are decoded in your browser and the
+history (optional, can be turned off) is stored only on your device (`storage.local`).
 
-## Licencia
+## License
 
 [MIT](LICENSE) © 2026 Ramón Coroso
 
