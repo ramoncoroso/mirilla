@@ -12,8 +12,9 @@ import { callMenu, fixture, openPage, tabIdOf, test } from '../tests/e2e/setup';
 const require = createRequire(import.meta.url);
 prepareZXingModule({ overrides: { wasmBinary: readFileSync(require.resolve('zxing-wasm/writer/zxing_writer.wasm')) } });
 
-const OUT = 'store/assets';
-const ICON = `data:image/svg+xml;base64,${readFileSync('store/icon.svg').toString('base64')}`;
+// MIRILLA_ICON / MIRILLA_ASSETS_OUT permiten generar las imágenes con otro icono (propuestas) sin tocar las oficiales.
+const OUT = process.env.MIRILLA_ASSETS_OUT ?? 'store/assets';
+const ICON = `data:image/svg+xml;base64,${readFileSync(process.env.MIRILLA_ICON ?? 'store/icon.svg').toString('base64')}`;
 
 async function barcode(text: string, format: string, options?: string, scale = 5): Promise<string> {
   const { image, error } = await writeBarcode(text, { format: format as 'QRCode', options, scale });
@@ -144,7 +145,7 @@ for (const lang of ['en', 'es'] as const) {
       await callMenu(sw, 'readImage', await tabIdOf(sw, page), src!);
       await settle(page);
       // La escena sin marco se guarda también para el promocional grande.
-      const shot = await page.screenshot({ path: `test-results/store/scene-1-${lang}.png` });
+      const shot = await page.screenshot({ path: `${OUT}/scene-1-${lang}.png` });
       await frame(context, pages, lang, 'screenshot-1.png', c.s1[0], c.s1[1], shot);
     });
 
@@ -273,6 +274,6 @@ test('promos y logo', async ({ context, pages }) => {
       h1{font-size:34px;line-height:1.2;margin:28px 0 14px} p{font-size:19px;color:#b7cdf7;margin:0}
       .s img{width:680px;border-radius:12px;box-shadow:0 24px 60px rgba(0,0,0,.45)}</style>
       <div class="t"><div class="b"><img src="${ICON}">Mirilla</div><h1>${c.tagline}</h1><p>${c.footer}</p></div>
-      <div class="s"><img src="${png(readFileSync('test-results/store/scene-1-en.png'))}"></div>`,
+      <div class="s"><img src="${png(readFileSync(`${OUT}/scene-1-en.png`))}"></div>`,
   );
 });

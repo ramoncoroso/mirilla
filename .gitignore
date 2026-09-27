@@ -7,3 +7,5 @@ test-results
 playwright-report
 HANDOFF.md
 store/assets/
+store/icons/
+store/galeria.html

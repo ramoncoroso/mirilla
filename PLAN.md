@@ -72,7 +72,7 @@ y metieron adware. Nos diferenciamos por:
 - [ ] **Usuario**: cuenta en addons.mozilla.org y subir `mirilla-1.0.0-firefox.zip` + `mirilla-1.0.0-sources.zip`
 - [ ] **Usuario**: cuenta en Microsoft Partner Center (Edge, gratis) y subir el zip de Chrome
 - [ ] Tras publicar: enlazar las fichas desde el README; etiqueta `v1.0.0` y release en GitHub
-- [ ] Icono definitivo (opcional): el actual es un QR genérico; uno con la metáfora de la mirilla reforzaría la marca
+- [x] Icono: se mantiene el actual (decidido 2026-09-27, tras comparar 4 propuestas)
 
 ### Fase 4 — Opcional (Elixir/Phoenix)
 - [ ] Lector web en labelic.com con LiveView + hook JS (zxing-wasm en el cliente) → SEO y móvil
