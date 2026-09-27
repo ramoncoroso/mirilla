@@ -4,7 +4,6 @@ test('el popup lee una imagen de fichero (WASM cargado con la CSP de la extensi√
   const popup = await context.newPage();
   await popup.goto(`chrome-extension://${extId}/popup.html`);
   await expect(popup.locator('#scan')).toHaveText('Scan visible area');
-  await expect(popup.getByRole('link', { name: 'by Labelic' })).toHaveAttribute('href', 'https://labelic.com');
 
   await popup.setInputFiles('#file', fixture('qr-wifi.png'));
   await expect(popup.locator('.qr-kind')).toHaveText('Wi-Fi network');

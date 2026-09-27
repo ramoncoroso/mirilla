@@ -27,7 +27,6 @@ export default defineConfig({
     short_name: 'Mirilla',
     description: '__MSG_extDescription__',
     default_locale: 'en',
-    homepage_url: 'https://labelic.com',
     permissions: ['activeTab', 'contextMenus', 'scripting', 'storage'],
     ...(process.env.E2E && { host_permissions: ['<all_urls>'] }),
     content_security_policy: {
