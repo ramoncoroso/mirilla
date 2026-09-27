@@ -11,6 +11,7 @@ type Command =
   | { op: 'tabIdByUrl'; url: string }
   | { op: 'activate'; tabId: number }
   | { op: 'setZoom'; tabId: number; zoom: number }
+  | { op: 'roundTrip'; text: string }
   | { op: 'menu'; fn: 'readImage' | 'startSelection' | 'scanVisible'; tabId: number; arg?: string };
 
 async function run(cmd: Command): Promise<unknown> {
@@ -28,6 +29,12 @@ async function run(cmd: Command): Promise<unknown> {
       return void (await browser.tabs.update(cmd.tabId, { active: true }));
     case 'setZoom':
       return browser.tabs.setZoom(cmd.tabId, cmd.zoom);
+    case 'roundTrip': {
+      // Genera un QR con el codificador y lo vuelve a leer con el lector (los dos WASM, con la CSP real).
+      const { generateQr } = await import('./generate');
+      const { decodeBlob } = await import('./decode');
+      return (await decodeBlob(await generateQr(cmd.text))).map((c) => c.text);
+    }
     case 'menu': {
       const bg = (await browser.runtime.getBackgroundPage()) as unknown as { __mirillaTest: Record<string, (...a: unknown[]) => Promise<void>> };
       const api = bg.__mirillaTest;

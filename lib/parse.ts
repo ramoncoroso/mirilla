@@ -2,11 +2,15 @@
 // Las etiquetas de campo son claves de mensaje: la traducción la hace la interfaz.
 
 import type { MessageKey } from '@/locales/messages';
+import type { Code } from './decode';
+import { parseDigitalLink, parseGs1, type Gs1Element } from './gs1';
 
 type Field = { label: MessageKey; value: string };
 
 export type Parsed =
-  | { kind: 'url'; url: string }
+  | { kind: 'url'; url: string; /** Si es un GS1 Digital Link, sus datos. */ gs1?: Gs1Element[] }
+  | { kind: 'gs1'; elements: Gs1Element[]; rest?: string }
+  | { kind: 'product'; gtin: string }
   | { kind: 'wifi'; ssid: string; password: string; security: string; hidden: boolean }
   | { kind: 'email'; to: string; subject: string; body: string }
   | { kind: 'tel'; number: string }
@@ -15,6 +19,24 @@ export type Parsed =
   | { kind: 'contact'; name: string; fields: Field[] }
   | { kind: 'sepa'; name: string; iban: string; bic: string; amount: string; reference: string }
   | { kind: 'text'; text: string };
+
+/** Formatos cuyo contenido es un GTIN (número de producto). */
+const PRODUCT_FORMATS = new Set(['EAN-13', 'EAN-8', 'UPC-A', 'UPC-E', 'ITF-14', 'ISBN']);
+
+/** Interpreta un código leído teniendo en cuenta su formato y si zxing lo marcó como GS1. */
+export function parseCode(code: Code): Parsed {
+  if (code.gs1) {
+    const { elements, rest } = parseGs1(code.raw ?? code.text);
+    if (elements.length > 0) return { kind: 'gs1', elements, rest };
+  }
+  if (PRODUCT_FORMATS.has(code.format) && /^\d{8,14}$/.test(code.text)) return { kind: 'product', gtin: code.text };
+  const parsed = parseContent(code.text);
+  if (parsed.kind === 'url') {
+    const gs1 = parseDigitalLink(parsed.url);
+    if (gs1) return { ...parsed, gs1 };
+  }
+  return parsed;
+}
 
 export function parseContent(raw: string): Parsed {
   const text = raw.trim();

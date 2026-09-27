@@ -3,7 +3,7 @@
 > Hoja de ruta del proyecto. Las casillas marcan lo hecho.
 
 **Fecha:** 2026-09-27
-**Estado:** Fases 1 y 1.5 hechas → siguiente: Fase 2 (GS1)
+**Estado:** Fases 1, 1.5 y 2 hechas (salvo el enlace a Labelic, pendiente de decidir) → siguiente: Fase 3 (publicación)
 
 ## Posicionamiento
 
@@ -47,12 +47,14 @@ y metieron adware. Nos diferenciamos por:
 - [x] **Fallo encontrado y corregido**: el panel «Leyendo…» se pintaba antes de capturar y tapaba los códigos de la esquina superior derecha (y el panel de una lectura anterior también). Ahora se oculta, se espera al repintado, se captura y luego se muestra. Con prueba de regresión.
 - [ ] A mano (la automatización no llega): clic real en el menú contextual del navegador y el atajo `Alt+Shift+Q`
 
-### Fase 2 — Diferenciación y nicho Labelic
-- [ ] **GS1**: interpretar los AIs (01 GTIN, 10 lote, 17 caducidad, 21 serie, 310x peso…) con etiquetas legibles; zxing ya marca `gs1: true` y devuelve el texto HRI "(01)…"
-- [ ] **GS1 Digital Link** (URLs `https://…/01/<GTIN>/10/<lote>`): mostrar los datos y además analizar la URL
-- [ ] Validar el dígito de control de GTIN/EAN y avisar si es incorrecto
-- [ ] Enlace discreto a labelic.com en los resultados GS1 ("Genera etiquetas GS1") — decidir el tono con el usuario
-- [ ] Generar el QR de la URL actual (zxing-wasm/writer)
+### Fase 2 — Diferenciación y nicho Labelic ✅ (2026-09-27)
+- [x] **GS1**: ~80 AIs (GTIN, SSCC, lote, fechas con ventana de siglo y fin de mes, medidas con decimales, importes con moneda ISO, GLN, países...), interpretados desde el texto en bruto de zxing (modo `Plain`, con separadores GS)
+- [x] **GS1 Digital Link**: AIs de la ruta y de la query, alias antiguos (`gtin`, `lot`...), GTIN-8/12/13 normalizado a 14; además, el análisis anti-quishing de la URL
+- [x] Dígito de control de GTIN/GLN/SSCC (aviso con el dígito correcto) y aviso de producto caducado (AI 17)
+- [x] Prefijo GS1 de EAN/UPC con nombre de país traducido (`Intl.DisplayNames`), ISBN/ISMN/ISSN, cupones y distribución restringida, con la aclaración de que no es el país de fabricación
+- [x] Generar el QR de la página actual (zxing-wasm/writer bajo demanda), descargar PNG y copiar imagen
+- [x] Pruebas: 20 unitarias nuevas, 8 en Chromium (en/es, ida y vuelta generar→leer) y 1 en Firefox
+- [ ] Enlace discreto a labelic.com en los resultados GS1 ("Genera etiquetas GS1") — **pendiente de decidir con el usuario** (Mirilla es marca independiente)
 
 ### Fase 3 — Publicación
 - [x] Nombre: Mirilla; ID de Firefox `mirilla@ramoncoroso.github.io` (**no se puede cambiar tras publicar**)

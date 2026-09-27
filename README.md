@@ -22,6 +22,8 @@ the extension only touches the tab you use it on, and only when you invoke it.
 - Results by content type: link, Wi-Fi, contact (vCard/MECARD), email, phone, SMS, geo, SEPA payment (EPC).
 - Anti-quishing URL checks: dangerous schemes, `user@domain` tricks, punycode lookalikes, raw IPs, plain http, URL shorteners.
 - Reads QR, Micro QR, Data Matrix, Aztec, PDF417, EAN/UPC, Code 128/39/93, ITF and more.
+- **GS1 aware**: interprets Application Identifiers (GTIN, SSCC, batch/lot, expiry and other dates, weights and measures, prices, GLNs...) in GS1 DataMatrix, GS1-128, GS1 QR and DataBar, and GS1 Digital Link URLs. Validates check digits, flags expired products and shows the GS1 prefix of EAN/UPC codes.
+- **QR code of the current page**, to download as PNG or copy as an image.
 - Local history (last 50 reads), can be turned off.
 
 The extension UI is available in English and Spanish, following your browser's language.
@@ -55,6 +57,8 @@ Firefox → `about:debugging#/runtime/this-firefox` → *Load Temporary Add-on* 
 | `lib/decode.ts` | zxing-wasm; the `.wasm` ships inside the package (MV3 forbids remote code) |
 | `lib/parse.ts` | Classifies the content (Wi-Fi, vCard, SEPA...) |
 | `lib/url-safety.ts` | Anti-phishing heuristics, fully offline |
+| `lib/gs1.ts` | GS1: Application Identifiers, Digital Link, check digits, GS1 prefixes |
+| `lib/generate.ts` | QR generation (zxing-wasm writer, loaded on demand) |
 | `lib/render.ts` | Renders results (shared by popup and panel); always as text, never as HTML |
 | `locales/messages.ts` | UI strings (en, es); `_locales/*/messages.json` is generated from it at build time |
 

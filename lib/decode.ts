@@ -1,11 +1,15 @@
 import { prepareZXingModule, readBarcodes, type ReadResult } from 'zxing-wasm/reader';
 import { browser } from 'wxt/browser';
+import { parseGs1, toHri } from './gs1';
 
 export interface Code {
+  /** Texto para mostrar, copiar y guardar (en GS1, la forma legible "(01)…(10)…"). */
   text: string;
   format: string;
-  /** Contenido GS1 (AIs) según zxing; se usará para interpretar etiquetas logísticas. */
+  /** Contenido GS1 (identificadores de aplicación) según zxing. */
   gs1: boolean;
+  /** Solo GS1: datos en bruto con separadores GS, que es lo que se interpreta. */
+  raw?: string;
 }
 
 export interface Rect {
@@ -39,7 +43,8 @@ export async function decodeImageData(image: ImageData): Promise<Code[]> {
     tryInvert: true,
     tryDownscale: true,
     maxNumberOfSymbols: 32,
-    textMode: 'HRI',
+    // Plain conserva los separadores GS de los datos GS1; la forma legible la genera toHri().
+    textMode: 'Plain',
   });
   return dedupe(results.filter((r) => r.isValid).map(toCode));
 }
@@ -79,7 +84,10 @@ function rasterize(bitmap: ImageBitmap, scale: number): ImageData {
 }
 
 function toCode(r: ReadResult): Code {
-  return { text: r.text, format: formatLabel(r.format), gs1: r.contentType === 'GS1' };
+  const format = formatLabel(r.format);
+  if (r.contentType !== 'GS1') return { text: r.text, format, gs1: false };
+  const parsed = parseGs1(r.text);
+  return { text: toHri(parsed.elements, parsed.rest), format, gs1: true, raw: r.text };
 }
 
 function dedupe(codes: Code[]): Code[] {

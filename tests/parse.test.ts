@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseContent } from '@/lib/parse';
+import { parseCode, parseContent } from '@/lib/parse';
 
 describe('parseContent', () => {
   it('reconoce URLs y dominios con www', () => {
@@ -58,5 +58,31 @@ describe('parseContent', () => {
       amount: '12.50 €',
       reference: 'Factura 2026-17',
     });
+  });
+});
+
+describe('parseCode', () => {
+  it('un EAN-13 es un producto', () => {
+    expect(parseCode({ text: '8412345678905', format: 'EAN-13', gs1: false })).toEqual({ kind: 'product', gtin: '8412345678905' });
+  });
+
+  it('un código marcado como GS1 se interpreta desde los datos en bruto', () => {
+    const p = parseCode({ text: '(01)08412345678905(10)L1', format: 'Data Matrix', gs1: true, raw: '0108412345678905' + '10L1' });
+    expect(p.kind).toBe('gs1');
+    expect(p.kind === 'gs1' && p.elements.map((e) => e.ai)).toEqual(['01', '10']);
+  });
+
+  it('si los datos GS1 no se entienden, se muestra como texto', () => {
+    expect(parseCode({ text: 'xyz', format: 'Code 128', gs1: true, raw: 'xyz' }).kind).toBe('text');
+  });
+
+  it('un QR con GS1 Digital Link es una URL con datos GS1', () => {
+    const p = parseCode({ text: 'https://id.gs1.org/01/09506000134352/10/ABC', format: 'QR', gs1: false });
+    expect(p).toMatchObject({ kind: 'url', url: 'https://id.gs1.org/01/09506000134352/10/ABC' });
+    expect(p.kind === 'url' && p.gs1?.map((e) => e.ai)).toEqual(['01', '10']);
+  });
+
+  it('una URL normal no lleva datos GS1', () => {
+    expect(parseCode({ text: 'https://example.com/', format: 'QR', gs1: false })).toEqual({ kind: 'url', url: 'https://example.com/' });
   });
 });

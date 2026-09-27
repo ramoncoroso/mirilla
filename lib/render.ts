@@ -4,8 +4,9 @@
 
 import type { MessageKey } from '@/locales/messages';
 import type { Code } from './decode';
+import { gtinPrefix, ISO_COUNTRY, ISO_CURRENCY, parseGs1Date, type Gs1Element } from './gs1';
 import { t } from './i18n';
-import { parseContent, type Parsed } from './parse';
+import { parseCode, type Parsed } from './parse';
 import { analyzeUrl, mainDomain } from './url-safety';
 
 export interface RenderActions {
@@ -20,10 +21,11 @@ export function renderCodes(codes: Code[], actions: RenderActions): HTMLElement 
 }
 
 export function renderCode(code: Code, actions: RenderActions): HTMLElement {
-  const parsed = parseContent(code.text);
+  const parsed = parseCode(code);
   const card = el('article', 'qr-card');
   const head = el('header', 'qr-head');
-  head.append(el('span', 'qr-badge', code.format), el('span', 'qr-kind', t(KIND_LABEL[parsed.kind])));
+  const kind = parsed.kind === 'url' && parsed.gs1 ? 'kindDigitalLink' : KIND_LABEL[parsed.kind];
+  head.append(el('span', 'qr-badge', code.format), el('span', 'qr-kind', t(kind)));
   card.append(head, renderBody(parsed, code, actions));
   return card;
 }
@@ -38,6 +40,8 @@ const KIND_LABEL: Record<Parsed['kind'], MessageKey> = {
   contact: 'kindContact',
   sepa: 'kindSepa',
   text: 'kindText',
+  gs1: 'kindGs1',
+  product: 'kindProduct',
 };
 
 function renderBody(p: Parsed, code: Code, a: RenderActions): HTMLElement {
@@ -46,6 +50,8 @@ function renderBody(p: Parsed, code: Code, a: RenderActions): HTMLElement {
 
   switch (p.kind) {
     case 'url': {
+      // Un Digital Link muestra primero sus datos GS1 y después el análisis de la URL, como cualquier enlace.
+      if (p.gs1) renderGs1(body, p.gs1);
       const report = analyzeUrl(p.url);
       body.append(renderUrl(p.url, report.host));
       for (const f of report.findings) body.append(el('p', `qr-finding qr-${f.level}`, t(f.message, ...(f.args ?? []))));
@@ -103,11 +109,109 @@ function renderBody(p: Parsed, code: Code, a: RenderActions): HTMLElement {
     case 'text':
       body.append(el('pre', 'qr-text', p.text));
       break;
+    case 'gs1': {
+      renderGs1(body, p.elements);
+      if (p.rest) body.append(el('p', 'qr-finding qr-info', t('gs1Unparsed', p.rest)));
+      const gtin = p.elements.find((e) => e.ai === '01');
+      if (gtin) buttons.append(copyButton(t('copyGtin'), gtin.value, a));
+      break;
+    }
+    case 'product':
+      body.append(dl([[t('gs1Gtin'), p.gtin], ...prefixRow(p.gtin)]));
+      if (isCountryPrefix(p.gtin)) body.append(el('p', 'qr-note', t('gs1PrefixNote')));
+      break;
   }
 
   buttons.append(copyButton(p.kind === 'text' ? t('copy') : t('copyContent'), code.text, a));
   body.append(buttons);
   return body;
+}
+
+// ---- GS1 ----
+
+/** Lista de datos GS1 con etiquetas traducidas, valores formateados y avisos (dígito de control, caducado). */
+function renderGs1(body: HTMLElement, elements: Gs1Element[]) {
+  const rows: [string, string][] = [];
+  const findings: HTMLElement[] = [];
+  let prefixNote = false;
+  for (const e of elements) {
+    const label = e.def?.label ? t(e.def.label) : (e.def?.title ?? 'AI');
+    rows.push([`${label} (${e.ai})`, formatGs1Value(e)]);
+    if (e.ai === '01' || e.ai === '02') {
+      rows.push(...prefixRow(e.value));
+      prefixNote ||= isCountryPrefix(e.value);
+    }
+    if (e.checkDigitOk === false) findings.push(el('p', 'qr-finding qr-danger', t('gs1BadCheckDigit', `(${e.ai})`, e.expectedCheckDigit ?? '')));
+    if (e.ai === '17') {
+      const d = parseGs1Date(e.value);
+      if (d && d.date < startOfToday()) findings.push(el('p', 'qr-finding qr-warn', t('gs1Expired')));
+    }
+  }
+  body.append(dl(rows), ...findings);
+  if (prefixNote) body.append(el('p', 'qr-note', t('gs1PrefixNote')));
+}
+
+function formatGs1Value(e: Gs1Element): string {
+  const lang = t('lang');
+  const scaled = (digits: string, decimals = e.decimals ?? 0) =>
+    new Intl.NumberFormat(lang, { minimumFractionDigits: decimals, maximumFractionDigits: decimals }).format(Number(digits) / 10 ** decimals);
+  switch (e.def?.kind) {
+    case 'date': {
+      const d = parseGs1Date(e.value);
+      if (!d) return e.value;
+      if (d.endOfMonth) return t('gs1EndOfMonth', new Intl.DateTimeFormat(lang, { year: 'numeric', month: 'long' }).format(d.date));
+      return new Intl.DateTimeFormat(lang, { dateStyle: 'medium' }).format(d.date);
+    }
+    case 'measure':
+      return /^\d+$/.test(e.value) ? `${scaled(e.value)} ${e.def.unit}` : e.value;
+    case 'count':
+      return /^\d+$/.test(e.value) ? new Intl.NumberFormat(lang).format(Number(e.value)) : e.value;
+    case 'amount':
+      return /^\d+$/.test(e.value) ? scaled(e.value) : e.value;
+    case 'amountIso': {
+      const currency = ISO_CURRENCY[e.value.slice(0, 3)];
+      const amount = e.value.slice(3);
+      if (!/^\d+$/.test(amount)) return e.value;
+      if (!currency) return `${scaled(amount)} (ISO 4217: ${e.value.slice(0, 3)})`;
+      const decimals = e.decimals ?? 0;
+      return new Intl.NumberFormat(lang, { style: 'currency', currency, minimumFractionDigits: decimals, maximumFractionDigits: decimals }).format(
+        Number(amount) / 10 ** decimals,
+      );
+    }
+    case 'country':
+      return regionName(ISO_COUNTRY[e.value]) ?? `ISO 3166: ${e.value}`;
+    default:
+      return e.value;
+  }
+}
+
+/** Fila "Prefijo GS1: España, Andorra" para un GTIN, o nada si no aplica. */
+function prefixRow(gtin: string): [string, string][] {
+  const info = gtinPrefix(gtin);
+  if (!info) return [];
+  const value = 'special' in info ? t(info.special) : info.regions.map((r) => regionName(r) ?? r).join(', ');
+  return [[t('gs1PrefixLabel'), value]];
+}
+
+/** El prefijo corresponde a un país (y no a ISBN, cupones...): entonces hay que aclarar que no es el origen. */
+function isCountryPrefix(gtin: string) {
+  const info = gtinPrefix(gtin);
+  return !!info && 'regions' in info;
+}
+
+function regionName(code: string | undefined): string | undefined {
+  if (!code) return undefined;
+  try {
+    return new Intl.DisplayNames([t('lang')], { type: 'region' }).of(code);
+  } catch {
+    return code;
+  }
+}
+
+function startOfToday() {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
 }
 
 /** Muestra la URL completa con el dominio principal resaltado, que es lo que decide adónde va. */
@@ -200,12 +304,13 @@ export const RESULT_CSS = `
 .qr-dl { display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; margin: 0 0 6px; }
 .qr-dl dt { color: var(--qr-muted); }
 .qr-dl dd { margin: 0; word-break: break-word; }
+.qr-note { margin: 4px 0 0; font-size: 11px; color: var(--qr-muted); }
 .qr-finding { margin: 4px 0; padding: 6px 8px; border-radius: 6px; font-size: 12px; line-height: 1.35; }
 .qr-danger { background: var(--qr-danger-bg); color: var(--qr-danger-fg); }
 .qr-warn { background: var(--qr-warn-bg); color: var(--qr-warn-fg); }
 .qr-info { background: var(--qr-info-bg); color: var(--qr-info-fg); }
 .qr-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
-.qr-btn { font: inherit; font-size: 12px; padding: 5px 10px; border-radius: 6px; border: 1px solid var(--qr-border); background: var(--qr-bg); color: var(--qr-fg); cursor: pointer; }
+.qr-btn { font: inherit; font-size: 12px; text-decoration: none; padding: 5px 10px; border-radius: 6px; border: 1px solid var(--qr-border); background: var(--qr-bg); color: var(--qr-fg); cursor: pointer; }
 .qr-btn:hover { border-color: var(--qr-muted); }
 .qr-btn-primary { background: var(--qr-accent); border-color: var(--qr-accent); color: #fff; }
 .qr-btn-danger { background: transparent; border-color: var(--qr-danger-fg); color: var(--qr-danger-fg); }

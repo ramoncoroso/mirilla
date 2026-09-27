@@ -20,6 +20,8 @@ webs**: la extensión solo toca la pestaña en la que la usas, y solo cuando tú
 - **Buscar en lo visible**: todos los códigos de la pestaña de una vez.
 - Pegar (Ctrl+V), arrastrar o elegir una imagen en el popup.
 - Resultados por tipo: enlace, WiFi, contacto (vCard/MECARD), email, teléfono, SMS, geo, pago SEPA (EPC).
+- **GS1**: interpreta los identificadores de aplicación (GTIN, SSCC, lote, caducidad y otras fechas, pesos y medidas, precios, GLN...) en GS1 DataMatrix, GS1-128, GS1 QR y DataBar, y las URL GS1 Digital Link. Valida el dígito de control, avisa de productos caducados y muestra el prefijo GS1 de los EAN/UPC.
+- **QR de la página actual**, para descargar en PNG o copiar como imagen.
 - Análisis anti-quishing de URLs: esquemas peligrosos, `usuario@dominio`, punycode, IPs, http, acortadores.
 - Historial local (50 lecturas), desactivable.
 
@@ -54,6 +56,8 @@ Firefox → `about:debugging#/runtime/this-firefox` → *Cargar complemento temp
 | `lib/decode.ts` | zxing-wasm; el `.wasm` va en el paquete (MV3 prohíbe código remoto) |
 | `lib/parse.ts` | Clasifica el contenido (WiFi, vCard, SEPA...) |
 | `lib/url-safety.ts` | Heurísticas anti-phishing, sin red |
+| `lib/gs1.ts` | GS1: identificadores de aplicación, Digital Link, dígitos de control, prefijos GS1 |
+| `lib/generate.ts` | Generación de QR (codificador de zxing-wasm, cargado bajo demanda) |
 | `lib/render.ts` | Pinta resultados (compartido popup/panel); todo como texto, nunca HTML |
 | `locales/messages.ts` | Textos de la interfaz (en, es); de ahí se generan los `_locales/*/messages.json` al compilar |
 

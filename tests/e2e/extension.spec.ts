@@ -19,7 +19,8 @@ test('el popup lee una imagen de fichero (WASM cargado con la CSP de la extensi√
 
   await popup.setInputFiles('#file', fixture('ean13.png'));
   await expect(popup.locator('.qr-badge').first()).toHaveText('EAN-13');
-  await expect(popup.locator('.qr-text')).toHaveText('8412345678905');
+  await expect(popup.locator('.qr-kind')).toHaveText('Product');
+  await expect(popup.locator('.qr-dl')).toContainText('8412345678905');
 
   await popup.setInputFiles('#file', fixture('datamatrix-gs1.png'));
   await expect(popup.locator('.qr-badge').first()).toHaveText('Data Matrix');

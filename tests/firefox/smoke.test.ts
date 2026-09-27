@@ -181,6 +181,18 @@ describe('Firefox', () => {
     assert.equal(await driver.findElement(By.css('.qr-domain')).getText(), 'evil.example');
   });
 
+  test('GS1: interpreta un Data Matrix con AIs y un código generado se vuelve a leer', async () => {
+    await driver.findElement(By.id('file')).sendKeys(fixture('datamatrix-gs1.png'));
+    const kind = await driver.wait(until.elementLocated(By.css('.qr-card .qr-kind')), 8000);
+    await driver.wait(until.elementTextIs(kind, 'GS1 data'), 8000);
+    const value = async (label: string) =>
+      driver.findElement(By.xpath(`//dl[@class='qr-dl']/dt[normalize-space()='${label}']/following-sibling::dd[1]`)).getText();
+    assert.equal(await value('Batch/lot (10)'), 'LOTE42');
+    assert.equal(await value('Net weight (3103)'), '1.250 kg');
+    assert.equal(await value('GS1 prefix'), 'Spain, Andorra');
+    assert.deepEqual(await bridge(driver, { op: 'roundTrip', text: 'https://example.com/firefox' }), ['https://example.com/firefox']);
+  });
+
   test('seleccionar área: inyecta, captura, recorta y decodifica en el background', async () => {
     const tabId = await openTab(driver, page('/area', `<img id="qr" src="/fixtures/qr-url.png" style="position:absolute;left:300px;top:200px">`));
     await selectElement(driver, tabId, '#qr');

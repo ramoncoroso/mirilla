@@ -44,6 +44,9 @@ function showCodes(codes: Code[]) {
 }
 
 async function activeTab() {
+  // En la build E2E el popup se abre como pestaña (sería él mismo la activa): ?tab=<id> indica cuál usar.
+  const forced = __E2E__ ? new URLSearchParams(location.search).get('tab') : null;
+  if (forced) return browser.tabs.get(Number(forced));
   const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
   return tab;
 }
@@ -83,6 +86,51 @@ $('scan').addEventListener('click', async () => {
     setStatus(t('captureBlocked'));
   }
 });
+
+// ---- Generar el QR de la página actual ----
+
+$('generate').addEventListener('click', async () => {
+  results.replaceChildren();
+  const url = (await activeTab())?.url;
+  if (!url || !/^https?:/.test(url)) {
+    setStatus(t('generateUnavailable'));
+    return;
+  }
+  setStatus(null);
+  try {
+    const { generateQr } = await import('@/lib/generate');
+    showGenerated(url, await generateQr(url));
+  } catch (e) {
+    console.error(e);
+    setStatus(t('generateError'));
+  }
+});
+
+function showGenerated(url: string, png: Blob) {
+  const src = URL.createObjectURL(png);
+  const card = el('article', 'qr-card generated');
+  const img = el('img') as HTMLImageElement;
+  img.src = src;
+  img.alt = url;
+  const download = el('a', 'qr-btn', t('downloadPng')) as HTMLAnchorElement;
+  download.href = src;
+  download.download = `qr-${new URL(url).hostname}.png`;
+  const copy = el('button', 'qr-btn', t('copyImage')) as HTMLButtonElement;
+  copy.type = 'button';
+  copy.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': png })]);
+      copy.textContent = t('copied');
+    } catch {
+      copy.textContent = t('copyFailed');
+    }
+    setTimeout(() => (copy.textContent = t('copyImage')), 1400);
+  });
+  const buttons = el('div', 'qr-actions');
+  buttons.append(download, copy);
+  card.append(img, el('p', 'qr-url', url), buttons);
+  results.append(card);
+}
 
 // ---- Imagen pegada, arrastrada o elegida ----
 

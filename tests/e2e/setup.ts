@@ -55,7 +55,8 @@ export const test = base.extend<Options & { context: BrowserContext; sw: Worker;
 
 /** Abre una página de pruebas con el HTML dado y espera a que carguen sus imágenes. */
 export async function openPage(context: BrowserContext, pages: Map<string, string>, pathname: string, body: string) {
-  pages.set(pathname, `<!doctype html><html><body style="margin:0;background:#fff">${body}</body></html>`);
+  // Se registra por ruta (sin query), que es como la busca el servidor de pruebas.
+  pages.set(new URL(pathname, ORIGIN).pathname, `<!doctype html><html><body style="margin:0;background:#fff">${body}</body></html>`);
   const page = await context.newPage();
   await page.goto(ORIGIN + pathname);
   await page.waitForFunction(() => Array.from(document.images).every((img) => img.complete));

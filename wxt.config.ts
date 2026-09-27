@@ -15,6 +15,7 @@ export default defineConfig({
     // El .wasm se copia tal cual al paquete; si se importa con ?url, Vite lo mete en base64 dentro del background.
     'build:publicAssets': (_wxt, files) => {
       files.push({ absoluteSrc: require.resolve('zxing-wasm/reader/zxing_reader.wasm'), relativeDest: 'zxing_reader.wasm' });
+      files.push({ absoluteSrc: require.resolve('zxing-wasm/writer/zxing_writer.wasm'), relativeDest: 'zxing_writer.wasm' });
       // Traducciones: se generan desde locales/messages.ts.
       for (const [lang, messages] of Object.entries(locales)) {
         files.push({ contents: toMessagesJson(messages), relativeDest: `_locales/${lang}/messages.json` });
