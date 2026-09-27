@@ -23,7 +23,7 @@ webs**: la extensión solo toca la pestaña en la que la usas, y solo cuando tú
 - Análisis anti-quishing de URLs: esquemas peligrosos, `usuario@dominio`, punycode, IPs, http, acortadores.
 - Historial local (50 lecturas), desactivable.
 
-La interfaz de la extensión está por ahora solo en castellano; la versión en inglés está en camino.
+La interfaz de la extensión está en inglés y en castellano, según el idioma del navegador.
 
 Requisitos: Chrome/Edge actual o Firefox ≥140 (Firefox para Android ≥142).
 
@@ -54,6 +54,7 @@ Firefox → `about:debugging#/runtime/this-firefox` → *Cargar complemento temp
 | `lib/parse.ts` | Clasifica el contenido (WiFi, vCard, SEPA...) |
 | `lib/url-safety.ts` | Heurísticas anti-phishing, sin red |
 | `lib/render.ts` | Pinta resultados (compartido popup/panel); todo como texto, nunca HTML |
+| `locales/messages.ts` | Textos de la interfaz (en, es); de ahí se generan los `_locales/*/messages.json` al compilar |
 
 La build E2E (`E2E=1`, en `.output-e2e/`) añade `<all_urls>` porque Playwright no puede conceder `activeTab`. **No publicarla.**
 

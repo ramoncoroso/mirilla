@@ -5,6 +5,7 @@
 import { browser } from 'wxt/browser';
 import type { Rect } from '@/lib/decode';
 import type { ToBackground, ToContent } from '@/lib/messages';
+import { t } from '@/lib/i18n';
 import { copyText, el, renderCodes, RESULT_CSS, THEME_CSS, THEME_DARK_CSS } from '@/lib/render';
 
 declare global {
@@ -44,10 +45,11 @@ export default defineUnlistedScript(() => {
     panel = el('section', 'panel');
     panel.setAttribute('role', 'dialog');
     panel.setAttribute('aria-label', 'Mirilla');
+    panel.lang = t('lang');
     const header = el('header', 'panel-head');
     const close = el('button', 'close', '×') as HTMLButtonElement;
     close.type = 'button';
-    close.setAttribute('aria-label', 'Cerrar');
+    close.setAttribute('aria-label', t('close'));
     close.addEventListener('click', hidePanel);
     header.append(el('span', 'title', 'Mirilla'), close);
     const body = el('div', 'panel-body');
@@ -77,7 +79,7 @@ export default defineUnlistedScript(() => {
 
     const layer = el('div', 'select-layer');
     const box = el('div', 'select-box');
-    const hint = el('div', 'select-hint', 'Arrastra para seleccionar el código · Esc para cancelar');
+    const hint = el('div', 'select-hint', t('selectHint'));
     layer.append(box, hint);
     shadow.append(layer);
 
@@ -166,12 +168,12 @@ export default defineUnlistedScript(() => {
         startSelection();
         break;
       case 'show-busy':
-        showPanel(el('p', 'status', 'Leyendo…'));
+        showPanel(el('p', 'status', t('reading')));
         break;
       case 'show-results':
         if (msg.error) showPanel(el('p', 'status', msg.error));
         else if (msg.codes.length === 0)
-          showPanel(el('p', 'status', 'No se ha encontrado ningún código. Prueba a seleccionar un área más ajustada al código.'));
+          showPanel(el('p', 'status', t('noCodes')));
         else showPanel(renderCodes(msg.codes, actions));
         break;
       case 'locate-image':

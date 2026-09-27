@@ -24,7 +24,7 @@ the extension only touches the tab you use it on, and only when you invoke it.
 - Reads QR, Micro QR, Data Matrix, Aztec, PDF417, EAN/UPC, Code 128/39/93, ITF and more.
 - Local history (last 50 reads), can be turned off.
 
-The extension UI is currently Spanish only; English is on the way.
+The extension UI is available in English and Spanish, following your browser's language.
 
 Requirements: current Chrome/Edge, or Firefox ≥140 (Firefox for Android ≥142).
 
@@ -55,6 +55,7 @@ Firefox → `about:debugging#/runtime/this-firefox` → *Load Temporary Add-on* 
 | `lib/parse.ts` | Classifies the content (Wi-Fi, vCard, SEPA...) |
 | `lib/url-safety.ts` | Anti-phishing heuristics, fully offline |
 | `lib/render.ts` | Renders results (shared by popup and panel); always as text, never as HTML |
+| `locales/messages.ts` | UI strings (en, es); `_locales/*/messages.json` is generated from it at build time |
 
 The E2E build (`E2E=1`, in `.output-e2e/`) adds `<all_urls>` because Playwright cannot grant `activeTab`. **Never publish it.**
 

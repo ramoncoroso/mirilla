@@ -1,4 +1,9 @@
 // Clasifica el texto de un código en un tipo de contenido reconocible.
+// Las etiquetas de campo son claves de mensaje: la traducción la hace la interfaz.
+
+import type { MessageKey } from '@/locales/messages';
+
+type Field = { label: MessageKey; value: string };
 
 export type Parsed =
   | { kind: 'url'; url: string }
@@ -7,7 +12,7 @@ export type Parsed =
   | { kind: 'tel'; number: string }
   | { kind: 'sms'; number: string; body: string }
   | { kind: 'geo'; lat: number; lon: number; query: string }
-  | { kind: 'contact'; name: string; fields: { label: string; value: string }[] }
+  | { kind: 'contact'; name: string; fields: Field[] }
   | { kind: 'sepa'; name: string; iban: string; bic: string; amount: string; reference: string }
   | { kind: 'text'; text: string };
 
@@ -83,17 +88,17 @@ function parseWifi(text: string): Parsed | null {
 }
 
 function parseMeCard(text: string): Parsed {
-  const labels: Record<string, string> = {
-    TEL: 'Teléfono',
-    EMAIL: 'Email',
-    ADR: 'Dirección',
-    URL: 'Web',
-    NOTE: 'Nota',
-    BDAY: 'Cumpleaños',
-    ORG: 'Empresa',
+  const labels: Record<string, MessageKey> = {
+    TEL: 'fieldPhone',
+    EMAIL: 'fieldEmail',
+    ADR: 'fieldAddress',
+    URL: 'fieldWeb',
+    NOTE: 'fieldNote',
+    BDAY: 'fieldBirthday',
+    ORG: 'fieldCompany',
   };
   let name = '';
-  const fields: { label: string; value: string }[] = [];
+  const fields: Field[] = [];
   for (const [k, v] of splitFields(text.slice(7))) {
     if (k === 'N') name = v.split(',').reverse().join(' ').trim();
     else if (labels[k] && v) fields.push({ label: labels[k], value: v });
@@ -102,20 +107,20 @@ function parseMeCard(text: string): Parsed {
 }
 
 function parseVCard(text: string): Parsed {
-  const labels: Record<string, string> = {
-    TEL: 'Teléfono',
-    EMAIL: 'Email',
-    ORG: 'Empresa',
-    TITLE: 'Cargo',
-    URL: 'Web',
-    ADR: 'Dirección',
-    NOTE: 'Nota',
+  const labels: Record<string, MessageKey> = {
+    TEL: 'fieldPhone',
+    EMAIL: 'fieldEmail',
+    ORG: 'fieldCompany',
+    TITLE: 'fieldJobTitle',
+    URL: 'fieldWeb',
+    ADR: 'fieldAddress',
+    NOTE: 'fieldNote',
   };
   // Las líneas que empiezan por espacio continúan la anterior (RFC 6350 §3.2).
   const lines = text.replace(/\r?\n[ \t]/g, '').split(/\r?\n/);
   let name = '';
   let structuredName = '';
-  const fields: { label: string; value: string }[] = [];
+  const fields: Field[] = [];
   for (const line of lines) {
     const idx = line.indexOf(':');
     if (idx < 0) continue;

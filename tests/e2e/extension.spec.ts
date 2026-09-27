@@ -8,10 +8,13 @@ declare const chrome: any;
 const extPath = path.resolve('.output-e2e/chrome-mv3');
 const fixture = (name: string) => path.resolve('tests/e2e/fixtures', name);
 
-const test = base.extend<{ context: BrowserContext; sw: Worker; extId: string }>({
-  context: async ({}, use) => {
+const test = base.extend<{ lang: string; context: BrowserContext; sw: Worker; extId: string }>({
+  // Idioma de la interfaz del navegador (y por tanto de la extensión). En Linux, Chromium lo toma de LANGUAGE.
+  lang: ['en', { option: true }],
+  context: async ({ lang }, use) => {
     const context = await chromium.launchPersistentContext('', {
       channel: 'chromium',
+      env: { ...process.env, LANGUAGE: lang },
       args: [`--disable-extensions-except=${extPath}`, `--load-extension=${extPath}`],
     });
     // Página de pruebas servida desde un origen http normal.
@@ -42,18 +45,19 @@ const test = base.extend<{ context: BrowserContext; sw: Worker; extId: string }>
 test('el popup lee una imagen de fichero (WASM cargado con la CSP de la extensión)', async ({ context, extId }) => {
   const popup = await context.newPage();
   await popup.goto(`chrome-extension://${extId}/popup.html`);
+  await expect(popup.locator('#scan')).toHaveText('Scan visible area');
 
   await popup.setInputFiles('#file', fixture('qr-wifi.png'));
-  await expect(popup.locator('.qr-kind')).toHaveText('Red WiFi');
+  await expect(popup.locator('.qr-kind')).toHaveText('Wi-Fi network');
   await expect(popup.locator('.qr-dl')).toContainText('secreto123');
-  await expect(popup.getByRole('button', { name: 'Copiar contraseña' })).toBeVisible();
+  await expect(popup.getByRole('button', { name: 'Copy password' })).toBeVisible();
 
   await popup.setInputFiles('#file', fixture('qr-url.png'));
   await expect(popup.locator('.qr-danger')).toContainText('www.paypal.com@');
   await expect(popup.locator('.qr-domain')).toHaveText('evil.example');
-  await expect(popup.getByRole('button', { name: 'Abrir de todos modos' })).toBeVisible();
+  await expect(popup.getByRole('button', { name: 'Open anyway' })).toBeVisible();
   await popup.setViewportSize({ width: 360, height: 520 });
-  await popup.screenshot({ path: 'test-results/popup.png' });
+  await popup.screenshot({ path: 'test-results/popup-en.png' });
 
   await popup.setInputFiles('#file', fixture('ean13.png'));
   await expect(popup.locator('.qr-badge').first()).toHaveText('EAN-13');
@@ -94,4 +98,25 @@ test('seleccionar un área de la página: inyecta, captura, recorta y decodifica
     .toBe('https://www.paypal.com@evil.example/login');
   await page.waitForTimeout(300);
   await page.screenshot({ path: 'test-results/seleccion-area.png' });
+});
+
+test.describe('interfaz en castellano', () => {
+  test.use({ lang: 'es' });
+
+  test('el popup y los resultados salen traducidos', async ({ context, extId }) => {
+    const popup = await context.newPage();
+    await popup.goto(`chrome-extension://${extId}/popup.html`);
+    await expect(popup.locator('#scan')).toHaveText('Buscar en lo visible');
+    await expect(popup.locator('html')).toHaveAttribute('lang', 'es');
+
+    await popup.setInputFiles('#file', fixture('qr-wifi.png'));
+    await expect(popup.locator('.qr-kind')).toHaveText('Red WiFi');
+    await expect(popup.getByRole('button', { name: 'Copiar contraseña' })).toBeVisible();
+
+    await popup.setInputFiles('#file', fixture('qr-url.png'));
+    await expect(popup.locator('.qr-danger')).toContainText('Contiene «www.paypal.com@» antes del dominio');
+    await expect(popup.getByRole('button', { name: 'Abrir de todos modos' })).toBeVisible();
+    await popup.setViewportSize({ width: 360, height: 520 });
+    await popup.screenshot({ path: 'test-results/popup-es.png' });
+  });
 });

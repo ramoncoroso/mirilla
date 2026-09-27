@@ -1,9 +1,17 @@
 import { browser } from 'wxt/browser';
 import { decodeBlob, type Code } from '@/lib/decode';
+import { t } from '@/lib/i18n';
+import type { MessageKey } from '@/locales/messages';
 import { addToHistory, clearHistory, getHistory, isHistoryEnabled, setHistoryEnabled } from '@/lib/history';
 import type { FromPopup } from '@/lib/messages';
 import { copyText, el, renderCodes, RESULT_CSS, THEME_CSS, THEME_DARK_CSS } from '@/lib/render';
 import { analyzeUrl } from '@/lib/url-safety';
+
+// getUILanguage() puede no coincidir con la traducción que el navegador eligió; esta sí.
+document.documentElement.lang = t('lang');
+for (const node of document.querySelectorAll<HTMLElement>('[data-i18n]')) {
+  node.textContent = t(node.dataset.i18n as MessageKey);
+}
 
 const style = document.createElement('style');
 style.textContent = `:root { ${THEME_CSS} } @media (prefers-color-scheme: dark) { :root { ${THEME_DARK_CSS} } } ${RESULT_CSS}`;
@@ -28,7 +36,7 @@ function setStatus(text: string | null) {
 function showCodes(codes: Code[]) {
   results.replaceChildren();
   if (codes.length === 0) {
-    setStatus('No se ha encontrado ningún código.');
+    setStatus(t('noCodesShort'));
     return;
   }
   setStatus(null);
@@ -41,7 +49,7 @@ async function activeTab() {
 }
 
 async function decodeAndShow(blob: Blob, source: string) {
-  setStatus('Leyendo…');
+  setStatus(t('reading'));
   results.replaceChildren();
   try {
     const codes = await decodeBlob(blob);
@@ -50,7 +58,7 @@ async function decodeAndShow(blob: Blob, source: string) {
     void renderHistory();
   } catch (e) {
     console.error(e);
-    setStatus('No se pudo leer la imagen.');
+    setStatus(t('readError'));
   }
 }
 
@@ -72,7 +80,7 @@ $('scan').addEventListener('click', async () => {
     await decodeAndShow(await (await fetch(dataUrl)).blob(), tab.url ?? '');
   } catch (e) {
     console.error(e);
-    setStatus('Esta página no se puede capturar (páginas internas del navegador o de tiendas de extensiones).');
+    setStatus(t('captureBlocked'));
   }
 });
 
@@ -106,7 +114,7 @@ document.addEventListener('paste', (e) => {
   const item = Array.from(e.clipboardData?.items ?? []).find((i) => i.type.startsWith('image/'));
   const blob = item?.getAsFile();
   if (blob) void decodeAndShow(blob, '');
-  else setStatus('El portapapeles no contiene una imagen.');
+  else setStatus(t('clipboardNoImage'));
 });
 
 // ---- Historial ----
@@ -118,7 +126,7 @@ async function renderHistory() {
   const entries = await getHistory();
   historyList.replaceChildren();
   if (entries.length === 0) {
-    historyList.append(el('li', 'history-empty', historyEnabled.checked ? 'Aún no hay lecturas.' : 'El historial está desactivado.'));
+    historyList.append(el('li', 'history-empty', historyEnabled.checked ? t('historyEmpty') : t('historyOff')));
     return;
   }
   for (const entry of entries) {
@@ -146,9 +154,9 @@ $('history-clear').addEventListener('click', async () => {
 
 function timeAgo(at: number) {
   const s = Math.round((Date.now() - at) / 1000);
-  if (s < 60) return 'ahora';
-  if (s < 3600) return `hace ${Math.floor(s / 60)} min`;
-  if (s < 86400) return `hace ${Math.floor(s / 3600)} h`;
+  if (s < 60) return t('timeNow');
+  if (s < 3600) return t('timeMinutes', Math.floor(s / 60));
+  if (s < 86400) return t('timeHours', Math.floor(s / 3600));
   return new Date(at).toLocaleDateString();
 }
 

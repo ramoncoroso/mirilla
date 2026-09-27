@@ -1,5 +1,6 @@
 import { createRequire } from 'node:module';
 import { defineConfig } from 'wxt';
+import { locales, toMessagesJson } from './locales/messages';
 
 const require = createRequire(import.meta.url);
 
@@ -12,13 +13,17 @@ export default defineConfig({
     // El .wasm se copia tal cual al paquete; si se importa con ?url, Vite lo mete en base64 dentro del background.
     'build:publicAssets': (_wxt, files) => {
       files.push({ absoluteSrc: require.resolve('zxing-wasm/reader/zxing_reader.wasm'), relativeDest: 'zxing_reader.wasm' });
+      // Traducciones: se generan desde locales/messages.ts.
+      for (const [lang, messages] of Object.entries(locales)) {
+        files.push({ contents: toMessagesJson(messages), relativeDest: `_locales/${lang}/messages.json` });
+      }
     },
   },
   manifest: ({ browser }) => ({
-    name: 'Mirilla — Lector QR y códigos de barras',
+    name: '__MSG_extName__',
     short_name: 'Mirilla',
-    description:
-      'Mira adónde lleva un código antes de abrirlo. Lee QR y códigos de barras de cualquier web, en local: sin servidores ni rastreo.',
+    description: '__MSG_extDescription__',
+    default_locale: 'en',
     permissions: ['activeTab', 'contextMenus', 'scripting', 'storage'],
     ...(process.env.E2E && { host_permissions: ['<all_urls>'] }),
     content_security_policy: {
@@ -27,7 +32,7 @@ export default defineConfig({
     commands: {
       'select-region': {
         suggested_key: { default: 'Alt+Shift+Q' },
-        description: 'Seleccionar un área de la página para leer',
+        description: '__MSG_cmdSelectRegion__',
       },
     },
     ...(browser === 'firefox' && {

@@ -2,7 +2,9 @@
 // inyecta en la página (dentro de un shadow root), así que no depende de ningún framework.
 // Todo el contenido del código se inserta como texto: nunca como HTML.
 
+import type { MessageKey } from '@/locales/messages';
 import type { Code } from './decode';
+import { t } from './i18n';
 import { parseContent, type Parsed } from './parse';
 import { analyzeUrl, mainDomain } from './url-safety';
 
@@ -21,21 +23,21 @@ export function renderCode(code: Code, actions: RenderActions): HTMLElement {
   const parsed = parseContent(code.text);
   const card = el('article', 'qr-card');
   const head = el('header', 'qr-head');
-  head.append(el('span', 'qr-badge', code.format), el('span', 'qr-kind', KIND_LABEL[parsed.kind]));
+  head.append(el('span', 'qr-badge', code.format), el('span', 'qr-kind', t(KIND_LABEL[parsed.kind])));
   card.append(head, renderBody(parsed, code, actions));
   return card;
 }
 
-const KIND_LABEL: Record<Parsed['kind'], string> = {
-  url: 'Enlace',
-  wifi: 'Red WiFi',
-  email: 'Email',
-  tel: 'Teléfono',
-  sms: 'SMS',
-  geo: 'Ubicación',
-  contact: 'Contacto',
-  sepa: 'Pago SEPA',
-  text: 'Texto',
+const KIND_LABEL: Record<Parsed['kind'], MessageKey> = {
+  url: 'kindUrl',
+  wifi: 'kindWifi',
+  email: 'kindEmail',
+  tel: 'kindTel',
+  sms: 'kindSms',
+  geo: 'kindGeo',
+  contact: 'kindContact',
+  sepa: 'kindSepa',
+  text: 'kindText',
 };
 
 function renderBody(p: Parsed, code: Code, a: RenderActions): HTMLElement {
@@ -46,9 +48,9 @@ function renderBody(p: Parsed, code: Code, a: RenderActions): HTMLElement {
     case 'url': {
       const report = analyzeUrl(p.url);
       body.append(renderUrl(p.url, report.host));
-      for (const f of report.findings) body.append(el('p', `qr-finding qr-${f.level}`, f.message));
+      for (const f of report.findings) body.append(el('p', `qr-finding qr-${f.level}`, t(f.message, ...(f.args ?? []))));
       if (report.openable) {
-        const open = button(report.findings.some((f) => f.level === 'danger') ? 'Abrir de todos modos' : 'Abrir', () => a.openUrl(p.url));
+        const open = button(report.findings.some((f) => f.level === 'danger') ? t('openAnyway') : t('open'), () => a.openUrl(p.url));
         if (report.findings.some((f) => f.level === 'danger')) open.classList.add('qr-btn-danger');
         else open.classList.add('qr-btn-primary');
         buttons.append(open);
@@ -58,52 +60,52 @@ function renderBody(p: Parsed, code: Code, a: RenderActions): HTMLElement {
     case 'wifi':
       body.append(
         dl([
-          ['Red', p.ssid + (p.hidden ? ' (oculta)' : '')],
-          ['Seguridad', p.security === 'nopass' ? 'Abierta' : p.security],
-          ...(p.password ? ([['Contraseña', p.password]] as [string, string][]) : []),
+          [t('fieldNetwork'), p.hidden ? t('networkHidden', p.ssid) : p.ssid],
+          [t('fieldSecurity'), p.security === 'nopass' ? t('securityOpen') : p.security],
+          ...(p.password ? ([[t('fieldPassword'), p.password]] as [string, string][]) : []),
         ]),
       );
-      if (p.password) buttons.append(copyButton('Copiar contraseña', p.password, a));
+      if (p.password) buttons.append(copyButton(t('copyPassword'), p.password, a));
       break;
     case 'email':
-      body.append(dl([['Para', p.to], ['Asunto', p.subject], ['Mensaje', p.body]]));
-      if (p.to) buttons.append(copyButton('Copiar dirección', p.to, a));
+      body.append(dl([[t('fieldTo'), p.to], [t('fieldSubject'), p.subject], [t('fieldMessage'), p.body]]));
+      if (p.to) buttons.append(copyButton(t('copyAddress'), p.to, a));
       break;
     case 'tel':
-      body.append(dl([['Número', p.number]]));
-      buttons.append(copyButton('Copiar número', p.number, a));
+      body.append(dl([[t('fieldNumber'), p.number]]));
+      buttons.append(copyButton(t('copyNumber'), p.number, a));
       break;
     case 'sms':
-      body.append(dl([['Número', p.number], ['Mensaje', p.body]]));
+      body.append(dl([[t('fieldNumber'), p.number], [t('fieldMessage'), p.body]]));
       break;
     case 'geo': {
-      body.append(dl([['Coordenadas', `${p.lat}, ${p.lon}`], ['Lugar', p.query]]));
+      body.append(dl([[t('fieldCoordinates'), `${p.lat}, ${p.lon}`], [t('fieldPlace'), p.query]]));
       const osm = `https://www.openstreetmap.org/?mlat=${p.lat}&mlon=${p.lon}#map=16/${p.lat}/${p.lon}`;
-      buttons.append(button('Ver en mapa', () => a.openUrl(osm)));
+      buttons.append(button(t('viewOnMap'), () => a.openUrl(osm)));
       break;
     }
     case 'contact':
-      body.append(dl([['Nombre', p.name], ...p.fields.map((f) => [f.label, f.value] as [string, string])]));
+      body.append(dl([[t('fieldName'), p.name], ...p.fields.map((f) => [t(f.label), f.value] as [string, string])]));
       break;
     case 'sepa':
       body.append(
         dl([
-          ['Beneficiario', p.name],
-          ['IBAN', p.iban],
-          ['BIC', p.bic],
-          ['Importe', p.amount],
-          ['Concepto', p.reference],
+          [t('fieldBeneficiary'), p.name],
+          [t('fieldIban'), p.iban],
+          [t('fieldBic'), p.bic],
+          [t('fieldAmount'), p.amount],
+          [t('fieldReference'), p.reference],
         ]),
       );
-      body.append(el('p', 'qr-finding qr-info', 'Comprueba el beneficiario y el IBAN antes de pagar: un QR de pago puede estar pegado encima del original.'));
-      buttons.append(copyButton('Copiar IBAN', p.iban, a));
+      body.append(el('p', 'qr-finding qr-info', t('sepaWarning')));
+      buttons.append(copyButton(t('copyIban'), p.iban, a));
       break;
     case 'text':
       body.append(el('pre', 'qr-text', p.text));
       break;
   }
 
-  buttons.append(copyButton(p.kind === 'text' ? 'Copiar' : 'Copiar contenido', code.text, a));
+  buttons.append(copyButton(p.kind === 'text' ? t('copy') : t('copyContent'), code.text, a));
   body.append(buttons);
   return body;
 }
@@ -140,9 +142,9 @@ function copyButton(label: string, text: string, a: RenderActions) {
   const b = button(label, async () => {
     try {
       await a.copy(text);
-      flash(b, 'Copiado ✓');
+      flash(b, t('copied'));
     } catch {
-      flash(b, 'No se pudo copiar');
+      flash(b, t('copyFailed'));
     }
   });
   return b;

@@ -60,7 +60,7 @@ y metieron adware. Nos diferenciamos por:
 - [x] Licencia MIT + nota de marca de Denso Wave en el README
 - [x] Repo git propio en `plugin/` (rama `main`)
 - [x] Publicado en GitHub: https://github.com/ramoncoroso/mirilla (público, 2026-09-27)
-- [ ] i18n: `_locales` es + en (nombre, descripción e interfaz)
+- [x] i18n: en (por defecto) + es, desde `locales/messages.ts` (nombre, descripción, menús e interfaz)
 - [ ] Nombre comercial, icono definitivo, capturas 1280×800 y textos de ficha
 - [ ] Política de privacidad (corta: "no recogemos nada") — p. ej. GitHub Pages del repo o la sección Privacidad del README
 - [ ] Chrome Web Store (pago único de 5 $) — `npm run zip`

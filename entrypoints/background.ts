@@ -1,6 +1,7 @@
 import { browser, type Browser } from 'wxt/browser';
 import { decodeBlob, type Code, type Rect } from '@/lib/decode';
 import { addToHistory } from '@/lib/history';
+import { t } from '@/lib/i18n';
 import type { FromPopup, ToBackground, ToContent } from '@/lib/messages';
 import { analyzeUrl } from '@/lib/url-safety';
 
@@ -9,9 +10,9 @@ type Tab = Browser.tabs.Tab;
 export default defineBackground(() => {
   browser.runtime.onInstalled.addListener(() => {
     browser.contextMenus.removeAll().then(() => {
-      browser.contextMenus.create({ id: 'read-image', title: 'Leer código de esta imagen', contexts: ['image'] });
-      browser.contextMenus.create({ id: 'select-region', title: 'Seleccionar área para leer código', contexts: ['all'] });
-      browser.contextMenus.create({ id: 'scan-page', title: 'Buscar códigos en lo visible', contexts: ['page'] });
+      browser.contextMenus.create({ id: 'read-image', title: t('menuReadImage'), contexts: ['image'] });
+      browser.contextMenus.create({ id: 'select-region', title: t('menuSelectRegion'), contexts: ['all'] });
+      browser.contextMenus.create({ id: 'scan-page', title: t('menuScanPage'), contexts: ['page'] });
     });
   });
 
@@ -123,7 +124,7 @@ async function finish(tab: Tab, codes: Code[]) {
 
 function finishWithError(tab: Tab, e: unknown) {
   console.error(e);
-  send(tab.id!, { type: 'show-results', codes: [], error: 'No se pudo leer la imagen.' });
+  send(tab.id!, { type: 'show-results', codes: [], error: t('readError') });
 }
 
 /**

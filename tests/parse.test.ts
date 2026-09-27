@@ -30,12 +30,12 @@ describe('parseContent', () => {
     const vcard = 'BEGIN:VCARD\r\nVERSION:3.0\r\nN:Coroso;Ramón\r\nFN:Ramón Coroso\r\nTEL;TYPE=CELL:+34 600 000 000\r\nEMAIL:ramon@\r\n example.com\r\nEND:VCARD';
     const p = parseContent(vcard);
     expect(p).toMatchObject({ kind: 'contact', name: 'Ramón Coroso' });
-    expect(p.kind === 'contact' && p.fields).toContainEqual({ label: 'Email', value: 'ramon@example.com' });
+    expect(p.kind === 'contact' && p.fields).toContainEqual({ label: 'fieldEmail', value: 'ramon@example.com' });
 
     expect(parseContent('MECARD:N:Coroso,Ramón;TEL:600000000;;')).toMatchObject({
       kind: 'contact',
       name: 'Ramón Coroso',
-      fields: [{ label: 'Teléfono', value: '600000000' }],
+      fields: [{ label: 'fieldPhone', value: '600000000' }],
     });
   });
 

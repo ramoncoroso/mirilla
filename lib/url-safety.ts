@@ -1,10 +1,15 @@
 // Análisis local de una URL leída de un código, pensado contra el "quishing".
 // No consulta ningún servicio: solo heurísticas sobre la propia URL.
+// Devuelve claves de mensaje (la traducción la hace la interfaz) para poder testearlo sin navegador.
+
+import type { MessageKey } from '@/locales/messages';
 
 export type Level = 'danger' | 'warn' | 'info';
 export interface Finding {
   level: Level;
-  message: string;
+  message: MessageKey;
+  /** Sustituciones $1, $2... del mensaje. */
+  args?: string[];
 }
 export interface UrlReport {
   /** Se puede ofrecer un botón "Abrir". */
@@ -27,7 +32,7 @@ export function analyzeUrl(raw: string): UrlReport {
   try {
     url = new URL(raw.trim());
   } catch {
-    return { openable: false, host: '', findings: [{ level: 'danger', message: 'La URL no es válida.' }] };
+    return { openable: false, host: '', findings: [{ level: 'danger', message: 'urlInvalid' }] };
   }
 
   const findings: Finding[] = [];
@@ -37,48 +42,42 @@ export function analyzeUrl(raw: string): UrlReport {
     return {
       openable: false,
       host: '',
-      findings: [{ level: 'danger', message: `Esquema «${scheme}» peligroso: puede ejecutar código o incrustar contenido. No se abrirá.` }],
+      findings: [{ level: 'danger', message: 'urlDangerousScheme', args: [scheme] }],
     };
   }
   if (scheme !== 'http:' && scheme !== 'https:') {
     return {
       openable: false,
       host: url.host,
-      findings: [{ level: 'warn', message: `Esquema «${scheme}» no web: abriría otra aplicación.` }],
+      findings: [{ level: 'warn', message: 'urlNonWebScheme', args: [scheme] }],
     };
   }
 
   const host = url.hostname.toLowerCase();
 
   if (url.username || url.password) {
-    findings.push({
-      level: 'danger',
-      message: `Contiene «${url.username}@» antes del dominio: el destino real es ${host}, no lo que aparece al principio.`,
-    });
+    findings.push({ level: 'danger', message: 'urlUserinfo', args: [url.username, host] });
   }
   if (host.split('.').some((label) => label.startsWith('xn--'))) {
-    findings.push({
-      level: 'danger',
-      message: 'Dominio con caracteres internacionales (punycode). Puede imitar a otro dominio con letras parecidas.',
-    });
+    findings.push({ level: 'danger', message: 'urlPunycode' });
   }
   if (isIpAddress(host)) {
-    findings.push({ level: 'warn', message: 'Apunta a una dirección IP en lugar de a un dominio.' });
+    findings.push({ level: 'warn', message: 'urlIp' });
   }
   if (scheme === 'http:') {
-    findings.push({ level: 'warn', message: 'Conexión sin cifrar (http).' });
+    findings.push({ level: 'warn', message: 'urlHttp' });
   }
   if (SHORTENERS.has(host.replace(/^www\./, ''))) {
-    findings.push({ level: 'info', message: 'Es un acortador o redirector: el destino final no se ve hasta abrirlo.' });
+    findings.push({ level: 'info', message: 'urlShortener' });
   }
   if (url.port && url.port !== '80' && url.port !== '443') {
-    findings.push({ level: 'info', message: `Usa un puerto poco habitual (${url.port}).` });
+    findings.push({ level: 'info', message: 'urlPort', args: [url.port] });
   }
   if (host.split('.').length > 5) {
-    findings.push({ level: 'warn', message: 'Tiene muchos subdominios; revisa cuál es el dominio real (el final).' });
+    findings.push({ level: 'warn', message: 'urlSubdomains' });
   }
   if (/(^|[.-])(login|signin|verify|secure|account|update|banking)([.-]|$)/.test(host) && findings.length > 0) {
-    findings.push({ level: 'warn', message: 'El dominio contiene palabras típicas de phishing.' });
+    findings.push({ level: 'warn', message: 'urlPhishingWords' });
   }
 
   return { openable: true, host, findings };
