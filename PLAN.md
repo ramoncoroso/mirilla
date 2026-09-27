@@ -3,8 +3,8 @@
 > Hoja de ruta del proyecto. Las casillas marcan lo hecho.
 
 **Fecha:** 2026-09-27
-**Estado:** Fases 1, 1.5 y 2 hechas; revisión de seguridad y buenas prácticas hecha; Fase 3 preparada (paquetes 1.0.0
-regenerados tras la revisión) → falta la comprobación manual y subir a las tiendas (lo hace el usuario con sus cuentas)
+**Estado:** Fases 1, 1.5 y 2 hechas; revisión de seguridad hecha; Fase 3 preparada (paquetes 1.0.0; falta la
+comprobación manual y subir a las tiendas, cosa del usuario). **Siguiente: Fase 4** (paridad con el mercado), empezando por 4.1
 
 ## Posicionamiento
 
@@ -102,6 +102,94 @@ automáticas usan `<all_urls>` y no pueden pulsar menús ni atajos):
 - [ ] «Buscar en lo visible» desde el popup real, en Chrome y en Firefox
 - [ ] Un enlace peligroso muestra el «!» rojo en el icono
 
-### Fase 4 — Opcional (Elixir/Phoenix)
+### Fase 4 — Paridad con los líderes del mercado ⏳ (planificada 2026-09-27)
+
+Comparativa (2026-09-27) con QR Code Reader (el más valorado en Chrome), Qroole, QR Code Reader de Firefox y los
+generadores tipo Zovo: Mirilla va por delante en anti-phishing, GS1, SEPA, permisos y blindaje, pero le faltan siete
+funciones que los usuarios dan por supuestas. Se hacen todas. **No se copian** (van contra el posicionamiento):
+detección automática en todas las páginas (exige acceso a todas las webs) y QR «dinámicos» (dependen de un servidor).
+
+**Principios para todo lo nuevo**: todo local; **ningún permiso nuevo en el manifest** (cámara y pantalla se piden en
+el momento con el aviso del propio navegador); textos en `locales/messages.ts`; lógica pura con tests unitarios y cada
+función con prueba en Chromium y, si aplica, en Firefox; y revisión de seguridad de lo nuevo al final.
+
+**Orden** (cada hito se cierra con tests en verde, commit y push):
+
+#### 4.1 Página de escaneo: cámara y pantalla — tamaño L
+- [ ] Nueva página de la extensión `scan.html`, abierta en **su propia pestaña** desde el popup («Escanear con la cámara»,
+  «Escanear pantalla u otra ventana»). No en el popup: Firefox lo cierra al salir el aviso de permisos y Chrome al abrir
+  el selector de pantalla.
+- [ ] Cámara: `getUserMedia({ video })`, selector de cámara, vista previa, lectura continua (~8 fotogramas/s en un
+  canvas → `decodeImageData`), se para al leer y al ocultar la pestaña (`visibilitychange`); nunca se graba ni se guarda
+  un fotograma.
+- [ ] Pantalla: `getDisplayMedia()`; el mismo bucle de lectura; se deja de compartir al leer o al cerrar.
+- [ ] Resultados con el mismo `renderCodes` (anti-phishing, GS1...), historial vía background.
+- [ ] **Primero, una prueba de concepto** de ambas APIs en páginas de extensión de Chrome y Firefox, para confirmar que no
+  hace falta ningún permiso en el manifest. Si hiciera falta alguno, se para y se consulta.
+- [ ] Pruebas: Chromium con cámara falsa que emite un QR (`--use-fake-device-for-media-stream` +
+  `--use-file-for-fake-video-capture` con un vídeo generado con ffmpeg desde los fixtures) y pantalla falsa
+  (`--auto-select-desktop-capture-source`); Firefox con `media.navigator.streams.fake` (comprobar interfaz y permisos).
+- [ ] Política de privacidad: cámara y pantalla se procesan en local, fotograma a fotograma, sin guardar nada.
+
+#### 4.2 Marcar en la página dónde está cada código — tamaño M
+- [ ] `Code` gana la posición de zxing (cuatro esquinas), convertida de píxeles de captura a píxeles CSS (misma escala que
+  el recorte; desplazada por el origen del recorte en «Seleccionar área»). La posición no se guarda en el historial.
+- [ ] El panel numera cada resultado y dibuja en la página un recuadro con ese número sobre cada código (dentro del mismo
+  shadow DOM blindado); pasar el ratón o el foco por una tarjeta resalta su recuadro y viceversa.
+- [ ] Los recuadros se quitan al cerrar el panel, al hacer scroll o al redimensionar (las posiciones son de la captura).
+- [ ] Recuadro rojo para los códigos peligrosos (`lib/risk.ts`).
+- [ ] Pruebas: posiciones correctas con HiDPI y zoom en Chromium y Firefox (varios códigos, comprobando que cada
+  recuadro cae sobre su imagen).
+
+#### 4.3 Nuevos tipos de contenido — tamaño M
+- [ ] **Eventos de calendario** (`BEGIN:VEVENT`, también dentro de `VCALENDAR`): título, inicio/fin con zona horaria,
+  lugar y descripción, con fechas en el idioma de la interfaz; botón «Añadir al calendario» que descarga un `.ics` generado
+  en local.
+- [ ] **2FA** (`otpauth://totp|hotp`): emisor y cuenta; el secreto **oculto** por defecto (botón para mostrarlo); aviso de
+  que solo se escanean desde la página de ajustes del propio servicio (un QR de 2FA ajeno puede vincular tu cuenta a un
+  atacante). Deja de tratarse como «esquema no web».
+- [ ] **Pagos cripto** (`bitcoin:`, `ethereum:`, `lightning:`; BIP 21 / EIP 681): dirección, importe y etiqueta; validación
+  de la dirección de Bitcoin (checksum Base58Check / Bech32) y aviso de que los pagos son irreversibles.
+- [ ] Todos pasan por `lib/risk.ts` (el «!» del icono) y por el detector de caracteres ocultos.
+- [ ] Pruebas unitarias con ejemplos de las especificaciones y E2E en popup en/es.
+
+#### 4.4 Generador completo — tamaño L
+- [ ] Página `create.html` (en pestaña; el popup es pequeño), accesible desde el popup; el botón actual «QR de esta
+  página» abre el generador ya relleno con la URL.
+- [ ] Tipos: URL, texto, WiFi, contacto (vCard), email, teléfono, SMS, ubicación, evento y pago SEPA (EPC). Los
+  constructores (`lib/build.ts`) escapan cada formato (`\;` `\:` en WiFi, vCard...) y tienen tests de ida y vuelta con
+  `parseContent`.
+- [ ] Opciones: nivel de corrección L/M/Q/H, colores de primer plano y fondo (avisa si el contraste impide leerlo), margen,
+  tamaño y **logo** centrado (fuerza corrección H y limita el tamaño). El dibujo sale de la matriz del símbolo de zxing
+  (`symbol`), no de su PNG, para poder aplicar colores y logo.
+- [ ] Exportar PNG y SVG (el SVG se construye con elementos y atributos, sin concatenar texto del usuario) y copiar imagen.
+- [ ] **«Comprobado: se lee bien ✓»**: cada código generado se vuelve a leer con el lector de Mirilla y se compara con lo
+  esperado; si no coincide (logo demasiado grande, poco contraste...), se avisa y no se ofrece descargarlo como válido.
+- [ ] Pruebas: ida y vuelta de todos los tipos y opciones (incluidos colores y logo), en Chromium y Firefox.
+
+#### 4.5 Historial completo — tamaño M
+- [ ] Hasta 100 lecturas por defecto (ajustable), búsqueda, filtro por tipo, borrar lecturas sueltas y fijar favoritas.
+- [ ] Exportar a CSV y JSON **protegido contra inyección de fórmulas** (celdas que empiezan por `=`, `+`, `-`, `@`,
+  tabulador o retorno de carro se prefijan con `'`).
+- [ ] Probablemente en una página propia (`history.html`) con un acceso desde el popup.
+- [ ] Pruebas unitarias (búsqueda, CSV) y E2E.
+
+#### 4.6 Más idiomas — tamaño M, **al final** (cuando ya existan todos los textos nuevos)
+- [ ] Francés, alemán, italiano, portugués (pt_BR y pt_PT) y neerlandés, en la interfaz y en las fichas de las tiendas.
+- [ ] Los tests ya comprueban claves, sustituciones `$1` y límites de longitud de nombre y descripción; se amplían a todos
+  los idiomas. Pedir una revisión nativa antes de publicar cada idioma (queda anotado en `store/listing.md`).
+
+#### 4.7 Cierre de la fase
+- [ ] Revisión de seguridad y buenas prácticas de todo lo nuevo (mismo método que la anterior: dos revisores
+  independientes y verificación de cada hallazgo). Puntos que vigilar: permisos de cámara y pantalla, CSV, logo subido
+  por el usuario, exportación SVG, `.ics`, secreto de 2FA.
+- [ ] Capturas de tienda y galería «en marcha» con las funciones nuevas; textos de las fichas y política de privacidad.
+- [ ] Nueva versión y comprobación manual antes de publicar (ampliada con cámara y pantalla).
+
+**Decisión abierta**: ¿publicar ya la 1.0.0 y sacar esto como 1.1+, o esperar y publicar todo junto? Recomendación:
+publicar la 1.0.0 en cuanto el usuario tenga tiempo (está completa y revisada) y entregar la Fase 4 en versiones
+sucesivas (1.1 con 4.1–4.3; 1.2 con 4.4–4.6), para empezar a tener usuarios y opiniones cuanto antes.
+
+### Fase 5 — Opcional (Elixir/Phoenix)
 - [ ] Lector web en labelic.com con LiveView + hook JS (zxing-wasm en el cliente) → SEO y móvil
 - [ ] Backend Phoenix + Postgres solo si una función lo necesita: reputación de URLs, cuentas o sincronización del historial
