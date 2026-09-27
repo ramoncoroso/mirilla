@@ -4,7 +4,8 @@
 
 **Fecha:** 2026-09-27
 **Estado:** Fases 1, 1.5 y 2 hechas; revisión de seguridad hecha; Fase 3 preparada (paquetes 1.0.0; falta la
-comprobación manual y subir a las tiendas, cosa del usuario). **Siguiente: Fase 4**, empezando por 4.0 (sistema de avisos)
+comprobación manual y subir a las tiendas; **se publicará todo junto al terminar la Fase 4**). **Siguiente: Fase 4**,
+empezando por 4.0 (sistema de avisos)
 
 ## Posicionamiento
 
@@ -57,7 +58,7 @@ y metieron adware. Nos diferenciamos por:
 - [x] Pruebas: 20 unitarias nuevas, 8 en Chromium (en/es, ida y vuelta generar→leer) y 1 en Firefox
 - [x] Relación con Labelic (decidido 2026-09-27): **solo una mención en el README** ("hecho por el autor de Labelic"); ningún enlace dentro de la extensión
 
-### Fase 3 — Publicación ⏳ (preparada 2026-09-27; falta subir a las tiendas)
+### Fase 3 — Publicación ⏳ (preparada 2026-09-27; en espera: se publica al terminar la Fase 4)
 - [x] Nombre: Mirilla; ID de Firefox `mirilla@ramoncoroso.github.io` (**no se puede cambiar tras publicar**)
 - [x] Licencia MIT
 - [x] Repo git propio en `plugin/` (rama `main`)
@@ -344,10 +345,9 @@ Chrome** en `_locales` (lista oficial de developer.chrome.com, comprobada el 202
 - [ ] Capturas de tienda y galería «en marcha» con las funciones nuevas; textos de las fichas y política de privacidad.
 - [ ] Nueva versión y comprobación manual antes de publicar (ampliada con cámara y pantalla).
 
-**Decisión abierta**: ¿publicar ya la 1.0.0 y sacar esto como 1.1+, o esperar y publicar todo junto? Recomendación:
-publicar la 1.0.0 en cuanto el usuario tenga tiempo (está completa y revisada) y entregar la Fase 4 en versiones
-sucesivas (1.1 con 4.0–4.3; 1.2 con 4.4–4.5; 1.3 con 4.6–4.7; los idiomas por tandas), para empezar a tener usuarios y
-opiniones cuanto antes.
+**Decidido (2026-09-27): no se publica todavía.** Se publicará todo junto al terminar la Fase 4 (incluida la
+revisión de seguridad del 4.9). La primera versión pública seguirá siendo la **1.0.0**, ya con todo lo de la Fase 4; los
+idiomas pueden entrar por tandas en versiones posteriores si la revisión nativa de alguno se retrasa.
 
 ### Fase 5 — Opcional (Elixir/Phoenix)
 - [ ] Lector web en labelic.com con LiveView + hook JS (zxing-wasm en el cliente) → SEO y móvil
