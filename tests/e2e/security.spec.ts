@@ -2,7 +2,7 @@
 // (hallazgos de la auditoría de seguridad del 2026-09-27). La build E2E abre el shadow DOM para poder inspeccionarlo.
 
 import type { Page } from '@playwright/test';
-import { callMenu, expect, history, openPage, tabIdOf, test } from './setup';
+import { callMenu, expect, fixture, history, openPage, tabIdOf, test } from './setup';
 
 declare const chrome: any;
 
@@ -96,4 +96,13 @@ test('un resultado peligroso marca el icono de la extensión, que la página no 
   await scanDangerousQr(page, sw);
   const tabId = await tabIdOf(sw, page);
   expect(await sw.evaluate((tabId) => chrome.action.getBadgeText({ tabId }), tabId)).toBe('!');
+});
+
+test('un enlace con caracteres invisibles (bidi) se trata como peligroso: aviso y «Open anyway»', async ({ context, extId }) => {
+  const popup = await context.newPage();
+  await popup.goto(`chrome-extension://${extId}/popup.html`);
+  await popup.setInputFiles('#file', fixture('qr-bidi.png'));
+  await expect(popup.locator('.qr-card > .qr-danger')).toContainText('U+202E');
+  await expect(popup.getByRole('button', { name: 'Open anyway' })).toBeVisible();
+  await expect(popup.getByRole('button', { name: 'Open', exact: true })).toHaveCount(0);
 });

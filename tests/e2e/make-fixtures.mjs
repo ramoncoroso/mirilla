@@ -19,6 +19,7 @@ const codes = {
   'ean13.png': ['8412345678905', { format: 'EAN13', scale: 3 }],
   'qr-js.png': ['javascript:alert(document.cookie)', { format: 'QRCode', scale: 6 }],
   'qr-safe.png': ['https://example.com/', { format: 'QRCode', scale: 6 }],
+  'qr-bidi.png': ['https://evil.example/\u202Emoc.lapyap.www//:sptth', { format: 'QRCode', scale: 6 }],
 };
 for (const [name, [text, opts]] of Object.entries(codes)) {
   const { image, error } = await writeBarcode(text, opts);

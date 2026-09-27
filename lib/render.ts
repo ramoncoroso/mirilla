@@ -62,8 +62,10 @@ function renderBody(p: Parsed, code: Code, a: RenderActions): HTMLElement {
       body.append(renderUrl(report.href, report.host));
       for (const f of report.findings) body.append(el('p', `qr-finding qr-${f.level}`, t(f.message, ...(f.args ?? []))));
       if (report.openable) {
-        const open = button(report.findings.some((f) => f.level === 'danger') ? t('openAnyway') : t('open'), () => a.openUrl(report.href));
-        if (report.findings.some((f) => f.level === 'danger')) open.classList.add('qr-btn-danger');
+        // Los caracteres ocultos se avisan a nivel de tarjeta, pero también hacen peligroso el enlace.
+        const dangerous = report.findings.some((f) => f.level === 'danger') || hiddenChars(p.url).length > 0;
+        const open = button(dangerous ? t('openAnyway') : t('open'), () => a.openUrl(report.href));
+        if (dangerous) open.classList.add('qr-btn-danger');
         else open.classList.add('qr-btn-primary');
         buttons.append(open);
       }
