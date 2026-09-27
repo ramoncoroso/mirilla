@@ -59,7 +59,7 @@ y metieron adware. Nos diferenciamos por:
 - [x] Nombre: Mirilla; ID de Firefox `mirilla@ramoncoroso.github.io` (**no se puede cambiar tras publicar**)
 - [x] Licencia MIT + nota de marca de Denso Wave en el README
 - [x] Repo git propio en `plugin/` (rama `main`)
-- [ ] Publicar en GitHub: `ramoncoroso/mirilla`, público
+- [x] Publicado en GitHub: https://github.com/ramoncoroso/mirilla (público, 2026-09-27)
 - [ ] i18n: `_locales` es + en (nombre, descripción e interfaz)
 - [ ] Nombre comercial, icono definitivo, capturas 1280×800 y textos de ficha
 - [ ] Política de privacidad (corta: "no recogemos nada") — p. ej. GitHub Pages del repo o la sección Privacidad del README
