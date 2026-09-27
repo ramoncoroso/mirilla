@@ -139,14 +139,53 @@ Decidido por el usuario (2026-09-27). Todo en local: nada se consulta a servicio
   - TLD que se confunden con ficheros (`.zip`, `.mov`) → Precaución.
 
 **Avisar mejor**
-- [ ] **Veredicto único** arriba de cada resultado: ✅ Sin problemas detectados / ⚠️ Precaución / ⛔ Peligro, con los
-  detalles debajo (los informativos, plegados). Evita la fatiga de avisos.
+- [ ] **Veredicto único y honesto** arriba de cada resultado, con los detalles debajo (los informativos, plegados; evita
+  la fatiga de avisos). Mirilla **analiza la dirección, no la página** (no la visita, no conoce su contenido, antigüedad
+  ni reputación), así que nunca dice «Seguro»:
+  - ⛔ **Peligro**: hay pruebas (aparece en una lista de phishing/malware o hay un truco evidente);
+  - ⚠️ **Precaución**: hay señales de riesgo;
+  - ℹ️ **Sin señales de riesgo**, siempre con el dominio real en grande y la pregunta «Vas a **dominio**. ¿Es el sitio
+    que esperabas?» (la defensa más eficaz contra el QR fraudulento: quien escanea un parquímetro sabe qué web espera).
 - [ ] **Puntuación combinada**: señales leves que coinciden (plataforma compartida + palabras de phishing + redirección)
   suben el veredicto. Umbrales ajustados con las mediciones de abajo.
 - [ ] **Fricción proporcional**: sin riesgo → «Abrir»; Precaución → botón secundario; Peligro → «Abrir de todos modos»
   con segunda confirmación y «Copiar el enlace» como alternativa.
 - [ ] **Accesibles y accionables**: icono + etiqueta de texto además del color; cada aviso dice qué puede pasar y qué hacer.
 - [ ] **Icono de la extensión**: «!» rojo para Peligro (ya existe) y marca amarilla para Precaución.
+
+**Listas públicas de phishing y malware, comparadas en local** (decidido 2026-09-27)
+Ni consultar cada URL a un servicio (un tercero vería lo que escaneas) ni una lista fija en el paquete (caduca): Mirilla
+descarga periódicamente una lista completa y compara en el equipo, como Safe Browsing o uBlock Origin.
+- [ ] **Lista propia en GitHub**: una GitHub Action (cada pocas horas) descarga **URLhaus** (CC0) y **Phishing.Database**
+  (MIT), la **filtra contra falsos positivos** (las listas incluyen URLs en servicios legítimos como `docs.google.com` o
+  `github.io`: en plataformas compartidas y webs populares de Tranco solo se marca la URL exacta, nunca el dominio
+  entero), la compacta (huellas SHA-256 recortadas, ordenadas; pocos MB) y la publica en GitHub Pages con su huella, su
+  fecha y los avisos de licencia.
+- [ ] **Firmada**: la lista se firma (Ed25519) y la clave pública va dentro de la extensión; si la firma no cuadra, se
+  descarta (ni una cuenta de GitHub comprometida podría colar una lista falsa).
+- [ ] **En la extensión**: descarga cada 6–12 h con `chrome.alarms` (permiso `alarms`, sin aviso al instalar; GitHub Pages
+  permite la descarga directa, así que no hace falta ningún permiso de acceso a webs), verifica, guarda en local
+  (IndexedDB) y busca por búsqueda binaria. Coincidencia → ⛔ «Aparece en una lista pública de phishing/malware
+  (URLhaus, actualizada hace 3 h)».
+- [ ] **Activada por defecto** (recomendación; **confirmar con el usuario al implementarlo**), desactivable en los ajustes
+  y explicada en la primera ejecución: la descarga no revela nada de lo que se escanea.
+- [ ] Complementa a las heurísticas: la lista detecta lo ya denunciado; las heurísticas, lo nuevo.
+- [ ] Pruebas: formato, firma válida e inválida, lista caducada (se sigue usando la última buena con su fecha), filtrado de
+  falsos positivos, rendimiento de la búsqueda.
+
+**«Investigar más»: comprobaciones online solo a petición**
+- [ ] Botón en el resultado, que explica antes qué servicio se contacta:
+  - **antigüedad del dominio** por RDAP (registro público; ve el dominio, no la URL ni quién eres): un dominio de pocos
+    días es una señal muy fuerte de fraude;
+  - **destino de un acortador** (`bit.ly/…`), siguiendo solo la redirección sin abrir la página final (el acortador sabe
+    que alguien lo consulta).
+- [ ] Nunca se visita la página para analizarla (avisaría al atacante y le daría la IP del usuario).
+
+**Honestidad sobre los límites**
+- [ ] En las fichas, la ayuda y la política de privacidad: «Mirilla analiza la dirección, no la página. Ninguna herramienta
+  puede garantizar que un sitio es seguro». Mencionar que el navegador (Safe Browsing) es una segunda red si se abre.
+- [ ] Política de privacidad actualizada: descarga periódica de la lista (qué se descarga, de dónde, qué no se envía) y
+  comprobaciones de «Investigar más».
 
 **Medir para no equivocarse** (datos solo en los tests, nunca en la extensión)
 - [ ] **Falsos positivos**: las ~10.000 primeras webs de **Tranco**, descargadas al ejecutar el test (sus fuentes incluyen
@@ -156,8 +195,7 @@ Decidido por el usuario (2026-09-27). Todo en local: nada se consulta a servicio
   informe del porcentaje detectado por veredicto. Expectativa realista: las heurísticas no ven un dominio malicioso «limpio»
   sin señales; el objetivo es no dejar pasar ninguno con señales claras.
 - [ ] Descartado: OpenPhish (sus condiciones prohíben usarlo para desarrollar productos o para detección).
-- [ ] Sin listas negras dentro de la extensión (caducan en días y engordan el paquete). Una lista actualizable y opcional,
-  descargada entera (sin consultar cada URL), queda como idea para la Fase 5.
+- [ ] Sin listas negras fijas dentro del paquete (caducan en días y engordan el paquete): ver «Listas públicas» abajo.
 
 #### 4.1 Página de escaneo: cámara y pantalla — tamaño L
 - [ ] Nueva página de la extensión `scan.html`, abierta en **su propia pestaña** desde el popup («Escanear con la cámara»,
