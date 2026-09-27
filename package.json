@@ -17,11 +17,15 @@
     "compile": "tsc --noEmit",
     "test": "vitest run",
     "test:e2e": "E2E=1 wxt build && playwright test",
-    "postinstall": "wxt prepare"
+    "postinstall": "wxt prepare",
+    "test:firefox": "E2E=1 wxt zip -b firefox && MIRILLA_XPI=.output-e2e/mirilla-$npm_package_version-firefox.zip node --test --test-concurrency=1 tests/firefox/smoke.test.ts"
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",
     "@types/node": "^26.6.3",
+    "@types/selenium-webdriver": "^4.35.7",
+    "geckodriver": "^7.0.0",
+    "selenium-webdriver": "^4.49.0",
     "typescript": "^7.0.2",
     "vitest": "^5.0.2",
     "wxt": "^0.21.4"

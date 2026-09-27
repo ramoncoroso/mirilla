@@ -7,6 +7,8 @@ import { analyzeUrl } from '@/lib/url-safety';
 
 type Tab = Browser.tabs.Tab;
 
+declare const __E2E__: boolean;
+
 export default defineBackground(() => {
   browser.runtime.onInstalled.addListener(() => {
     browser.contextMenus.removeAll().then(() => {
@@ -22,6 +24,15 @@ export default defineBackground(() => {
     else if (info.menuItemId === 'select-region') void startSelection(tab.id);
     else if (info.menuItemId === 'scan-page') void scanVisible(tab);
   });
+
+  if (__E2E__) {
+    // Solo en la build de tests: la automatización no puede pulsar menús contextuales ni atajos del navegador.
+    Object.assign(globalThis, { __mirillaTest: { readImage, startSelection, scanVisible } });
+    // geckodriver no puede navegar a moz-extension://: la extensión abre su propia página para las pruebas.
+    if (import.meta.env.FIREFOX) {
+      browser.runtime.onInstalled.addListener(() => void browser.tabs.create({ url: browser.runtime.getURL('/popup.html') }));
+    }
+  }
 
   browser.commands.onCommand.addListener((command, tab) => {
     if (command === 'select-region' && tab?.id) void startSelection(tab.id);
@@ -77,7 +88,6 @@ async function startSelection(tabId: number) {
 }
 
 async function readRegion(tab: Tab, rect: Rect, viewportWidth: number) {
-  send(tab.id!, { type: 'show-busy' });
   try {
     await finish(tab, await captureAndDecode(tab, rect, viewportWidth));
   } catch (e) {
@@ -87,7 +97,6 @@ async function readRegion(tab: Tab, rect: Rect, viewportWidth: number) {
 
 async function scanVisible(tab: Tab) {
   if (!(await injectOverlay(tab.id!))) return;
-  send(tab.id!, { type: 'show-busy' });
   try {
     await finish(tab, await captureAndDecode(tab));
   } catch (e) {
@@ -95,9 +104,15 @@ async function scanVisible(tab: Tab) {
   }
 }
 
-/** Captura lo visible de la pestaña y decodifica, opcionalmente solo un rectángulo (en px CSS del viewport). */
+/**
+ * Captura lo visible de la pestaña y decodifica, opcionalmente solo un rectángulo (en px CSS del viewport).
+ * El panel de Mirilla se oculta antes de capturar y el "Leyendo…" se muestra después:
+ * si no, el propio panel tapa los códigos de la esquina superior derecha.
+ */
 async function captureAndDecode(tab: Tab, rect?: Rect, viewportWidth?: number): Promise<Code[]> {
+  await browser.tabs.sendMessage(tab.id!, { type: 'prepare-capture' } satisfies ToContent).catch(() => {});
   const dataUrl = await browser.tabs.captureVisibleTab(tab.windowId, { format: 'png' });
+  send(tab.id!, { type: 'show-busy' });
   const blob = await (await fetch(dataUrl)).blob();
   if (!rect || !viewportWidth) return decodeBlob(blob);
 

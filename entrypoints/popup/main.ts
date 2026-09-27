@@ -169,3 +169,6 @@ void (async () => {
   const shortcut = commands.find((c) => c.name === 'select-region')?.shortcut;
   if (shortcut) $('shortcut').textContent = shortcut;
 })();
+
+declare const __E2E__: boolean;
+if (__E2E__) void import('@/lib/e2e-bridge').then((m) => m.mount());

@@ -3,7 +3,7 @@
 > Hoja de ruta del proyecto. Las casillas marcan lo hecho.
 
 **Fecha:** 2026-09-27
-**Estado:** Fase 1 (MVP) hecha → falta verificación manual (Fase 1.5)
+**Estado:** Fases 1 y 1.5 hechas → siguiente: Fase 2 (GS1)
 
 ## Posicionamiento
 
@@ -41,12 +41,11 @@ y metieron adware. Nos diferenciamos por:
 - [x] Tests: 15 unitarios (vitest) + 2 E2E (Playwright + Chromium real)
 - [x] Build Chrome y Firefox; `web-ext lint` sin errores ni avisos
 
-### Fase 1.5 — Verificación manual ⏳ (siguiente paso)
-- [ ] Cargar `.output/chrome-mv3` en Chrome y probar los 4 modos de lectura
-- [ ] Cargar `.output/firefox-mv3` en Firefox (`about:debugging`) y probar lo mismo
-- [ ] Caminos sin cobertura E2E: **clic derecho en imagen** (fetch y recorte) y **Buscar en lo visible** desde el popup real
-- [ ] Casos límite: pantalla HiDPI y zoom ≠ 100 % (escala del recorte), imagen SVG, imagen parcialmente fuera del viewport, páginas protegidas (`chrome://`, tiendas)
-- [ ] Probar con QR reales: fotos inclinadas, códigos pequeños, invertidos (blanco sobre negro)
+### Fase 1.5 — Verificación ✅ (2026-09-27, automatizada)
+- [x] Chromium (Playwright, 14 pruebas): menú «Leer imagen» por fetch y por recorte (SVG), imagen medio fuera de la vista, buscar en lo visible (QR + EAN-13 + Data Matrix), HiDPI ×2, zoom 150 %, `chrome://` protegida, imágenes difíciles (invertida, girada + borrosa + poco contraste, diminuta, varias en una), historial desactivado, abrir enlace y bloqueo de `javascript:`
+- [x] Firefox 156 (Selenium + geckodriver, 7 pruebas): popup, selección de área, menú por fetch y SVG, buscar en lo visible, zoom 150 %, HiDPI ×2
+- [x] **Fallo encontrado y corregido**: el panel «Leyendo…» se pintaba antes de capturar y tapaba los códigos de la esquina superior derecha (y el panel de una lectura anterior también). Ahora se oculta, se espera al repintado, se captura y luego se muestra. Con prueba de regresión.
+- [ ] A mano (la automatización no llega): clic real en el menú contextual del navegador y el atajo `Alt+Shift+Q`
 
 ### Fase 2 — Diferenciación y nicho Labelic
 - [ ] **GS1**: interpretar los AIs (01 GTIN, 10 lote, 17 caducidad, 21 serie, 310x peso…) con etiquetas legibles; zxing ya marca `gs1: true` y devuelve el texto HRI "(01)…"

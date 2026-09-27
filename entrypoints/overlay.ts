@@ -179,6 +179,12 @@ export default defineUnlistedScript(() => {
       case 'locate-image':
         sendResponse(locateImage(msg.srcUrl));
         return true;
+      case 'prepare-capture':
+        hidePanel();
+        void nextFrame()
+          .then(nextFrame)
+          .then(() => sendResponse(true));
+        return true;
     }
     return undefined;
   });

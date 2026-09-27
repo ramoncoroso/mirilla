@@ -10,6 +10,8 @@ export type ToContent =
   | { type: 'start-selection' }
   | { type: 'show-results'; codes: Code[]; error?: string }
   | { type: 'show-busy' }
+  /** Oculta la interfaz de Mirilla y responde cuando la página ya se ha repintado sin ella. */
+  | { type: 'prepare-capture' }
   | { type: 'locate-image'; srcUrl: string };
 
 /** Mensajes del popup al background. */

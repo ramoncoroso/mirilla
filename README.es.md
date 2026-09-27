@@ -38,6 +38,7 @@ npm run build:firefox  # .output/firefox-mv3
 npm run zip / zip:firefox   # paquetes para las tiendas
 npm test               # unitarios (parseo y análisis de URLs)
 npm run test:e2e       # Playwright + Chromium con la extensión cargada
+npm run test:firefox   # Selenium + geckodriver + Firefox con la extensión instalada
 ```
 
 Cargar a mano: Chrome → `chrome://extensions` → modo desarrollador → *Cargar descomprimida* → `.output/chrome-mv3`.
@@ -56,7 +57,7 @@ Firefox → `about:debugging#/runtime/this-firefox` → *Cargar complemento temp
 | `lib/render.ts` | Pinta resultados (compartido popup/panel); todo como texto, nunca HTML |
 | `locales/messages.ts` | Textos de la interfaz (en, es); de ahí se generan los `_locales/*/messages.json` al compilar |
 
-La build E2E (`E2E=1`, en `.output-e2e/`) añade `<all_urls>` porque Playwright no puede conceder `activeTab`. **No publicarla.**
+La build E2E (`E2E=1`, en `.output-e2e/`) añade `<all_urls>` (la automatización no puede conceder `activeTab`) y un puente solo para pruebas (`lib/e2e-bridge.ts`, `__mirillaTest`). **No publicarla nunca.** La build normal no incluye nada de eso.
 
 ## Privacidad
 

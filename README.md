@@ -39,6 +39,7 @@ npm run build:firefox  # .output/firefox-mv3
 npm run zip / zip:firefox   # store packages
 npm test               # unit tests (content parsing and URL analysis)
 npm run test:e2e       # Playwright + Chromium with the extension loaded
+npm run test:firefox   # Selenium + geckodriver + Firefox with the extension installed
 ```
 
 Load it manually: Chrome → `chrome://extensions` → Developer mode → *Load unpacked* → `.output/chrome-mv3`.
@@ -57,7 +58,7 @@ Firefox → `about:debugging#/runtime/this-firefox` → *Load Temporary Add-on* 
 | `lib/render.ts` | Renders results (shared by popup and panel); always as text, never as HTML |
 | `locales/messages.ts` | UI strings (en, es); `_locales/*/messages.json` is generated from it at build time |
 
-The E2E build (`E2E=1`, in `.output-e2e/`) adds `<all_urls>` because Playwright cannot grant `activeTab`. **Never publish it.**
+The E2E build (`E2E=1`, in `.output-e2e/`) adds `<all_urls>` (automation cannot grant `activeTab`) and a test-only bridge (`lib/e2e-bridge.ts`, `__mirillaTest`). **Never publish it.** The regular build strips all of it.
 
 ## Privacy
 

@@ -9,6 +9,8 @@ export default defineConfig({
   manifestVersion: 3,
   // La build de tests E2E va aparte: lleva <all_urls> porque Playwright no puede conceder activeTab.
   outDir: process.env.E2E ? '.output-e2e' : '.output',
+  // __E2E__ se sustituye al compilar: en la build normal el código de pruebas desaparece.
+  vite: () => ({ define: { __E2E__: JSON.stringify(!!process.env.E2E) } }),
   hooks: {
     // El .wasm se copia tal cual al paquete; si se importa con ?url, Vite lo mete en base64 dentro del background.
     'build:publicAssets': (_wxt, files) => {
