@@ -4,6 +4,8 @@
 
 import { parse as parseDomain } from 'tldts';
 import type { MessageKey } from '@/locales/messages';
+import { DANGEROUS_EXTENSIONS, FILE_LIKE_TLDS, INSTALL_SCHEMES } from './data/file-types';
+import { findLookalike, idnInfo, references, type Lookalike, type Reference } from './lookalike';
 
 export type Level = 'danger' | 'warn' | 'info';
 export interface Finding {
@@ -19,6 +21,10 @@ export interface UrlReport {
   host: string;
   /** La URL que abriría el navegador (normalizada); es la que se muestra. */
   href: string;
+  /** Dominio registrable (el que decide adónde va), vacío si no es una URL web. */
+  domain: string;
+  /** Si imita a una marca o a un sitio de confianza. */
+  lookalike?: Lookalike;
   findings: Finding[];
 }
 
@@ -32,22 +38,29 @@ const DANGEROUS_SCHEMES = new Set(['javascript:', 'data:', 'vbscript:', 'file:',
 
 const PHISHING_WORDS = /(^|[.-])(login|signin|verify|secure|account|update|banking)([.-]|$)/;
 
-export function analyzeUrl(raw: string): UrlReport {
+/**
+ * Analiza una URL. `refs` son los sitios que se pueden imitar: las marcas de la lista y, si se pasan,
+ * los sitios de confianza del usuario (ver lookalike.ts).
+ */
+export function analyzeUrl(raw: string, refs: readonly Reference[] = references()): UrlReport {
   let url: URL;
   try {
     url = new URL(raw.trim());
   } catch {
-    return { openable: false, host: '', href: raw, findings: [{ level: 'danger', message: 'urlInvalid' }] };
+    return { openable: false, host: '', href: raw, domain: '', findings: [{ level: 'danger', message: 'urlInvalid' }] };
   }
 
   const findings: Finding[] = [];
   const scheme = url.protocol.toLowerCase();
 
   if (DANGEROUS_SCHEMES.has(scheme)) {
-    return { openable: false, host: '', href: url.href, findings: [{ level: 'danger', message: 'urlDangerousScheme', args: [scheme] }] };
+    return { openable: false, host: '', href: url.href, domain: '', findings: [{ level: 'danger', message: 'urlDangerousScheme', args: [scheme] }] };
+  }
+  if (INSTALL_SCHEMES.has(scheme)) {
+    return { openable: false, host: '', href: url.href, domain: '', findings: [{ level: 'danger', message: 'urlInstallScheme', args: [scheme] }] };
   }
   if (scheme !== 'http:' && scheme !== 'https:') {
-    return { openable: false, host: url.host, href: url.href, findings: [{ level: 'warn', message: 'urlNonWebScheme', args: [scheme] }] };
+    return { openable: false, host: url.host, href: url.href, domain: '', findings: [{ level: 'warn', message: 'urlNonWebScheme', args: [scheme] }] };
   }
 
   // "bit.ly." es el mismo host que "bit.ly": el punto final no debe esquivar ninguna comprobación.
@@ -56,8 +69,24 @@ export function analyzeUrl(raw: string): UrlReport {
   if (url.username || url.password) {
     findings.push({ level: 'danger', message: 'urlUserinfo', args: [decodeSafe(url.username), host] });
   }
-  if (host.split('.').some((label) => label.startsWith('xn--'))) {
-    findings.push({ level: 'danger', message: 'urlPunycode' });
+  const domain = mainDomain(host);
+  const lookalike = isIpAddress(host) ? null : findLookalike(host, domain, url.pathname, refs);
+  if (lookalike) findings.push(lookalikeFinding(lookalike, host));
+
+  // Caracteres internacionales: legítimos (españa.es, müller.de), salvo que mezclen alfabetos o se lean como otro dominio.
+  const idn = idnInfo(host);
+  if (idn && lookalike?.kind !== 'homograph') {
+    if (idn.mixedScripts) findings.push({ level: 'danger', message: 'urlMixedScripts', args: [idn.unicode] });
+    else if (idn.readsAs) findings.push({ level: 'warn', message: 'urlReadsAs', args: [idn.unicode, idn.readsAs] });
+    else findings.push({ level: 'info', message: 'urlIdn', args: [idn.unicode] });
+  }
+  const ext = executableExtension(url.pathname);
+  if (ext) {
+    findings.push({ level: 'danger', message: 'urlExecutable', args: [`.${ext}`] });
+  }
+  const tld = host.slice(host.lastIndexOf('.') + 1);
+  if (FILE_LIKE_TLDS.has(tld)) {
+    findings.push({ level: 'warn', message: 'urlFileLikeTld', args: [`.${tld}`] });
   }
   if (isIpAddress(host)) {
     findings.push({ level: 'warn', message: 'urlIp' });
@@ -70,7 +99,7 @@ export function analyzeUrl(raw: string): UrlReport {
     findings.push({ level: 'warn', message: 'urlRedirect', args: redirect });
   }
   if (SHORTENERS.has(host.replace(/^www\./, ''))) {
-    findings.push({ level: 'info', message: 'urlShortener' });
+    findings.push({ level: 'warn', message: 'urlShortener' });
   }
   const suffix = sharedHostingSuffix(host);
   if (suffix) {
@@ -83,11 +112,41 @@ export function analyzeUrl(raw: string): UrlReport {
     findings.push({ level: 'warn', message: 'urlSubdomains' });
   }
   if (PHISHING_WORDS.test(host)) {
-    // Sola es una pista débil (login.microsoftonline.com es legítimo); junto a otras señales, un aviso.
-    findings.push({ level: findings.length > 0 ? 'warn' : 'info', message: 'urlPhishingWords' });
+    // Sola es una pista débil (login.microsoftonline.com es legítimo); suma en la puntuación (verdict.ts).
+    findings.push({ level: 'info', message: 'urlPhishingWords' });
   }
 
-  return { openable: true, host, href: url.href, findings };
+  return { openable: true, host, href: url.href, domain, ...(lookalike && { lookalike }), findings };
+}
+
+function lookalikeFinding({ kind, ref }: Lookalike, host: string): Finding {
+  const trusted = !!ref.trusted;
+  switch (kind) {
+    case 'brand-host':
+      return trusted
+        ? { level: 'danger', message: 'urlImitatesTrusted', args: [ref.primary] }
+        : { level: 'danger', message: 'urlBrand', args: [ref.name, ref.primary] };
+    case 'brand-path':
+      return { level: 'warn', message: 'urlBrandPath', args: [ref.name, ref.primary] };
+    case 'brand-tld':
+      return { level: 'info', message: 'urlBrandTld', args: [ref.name, mainDomain(host), ref.primary] };
+    case 'typo-swap':
+    case 'homograph':
+      return trusted
+        ? { level: 'danger', message: 'urlImitatesTrusted', args: [ref.primary] }
+        : { level: 'danger', message: 'urlImitation', args: [ref.primary] };
+    case 'typo-edit':
+      return { level: 'warn', message: 'urlLooksLike', args: [ref.primary, mainDomain(host)] };
+  }
+}
+
+/** Extensión del último segmento de la ruta si es la de un programa o instalador («/app.apk»). */
+function executableExtension(pathname: string): string | null {
+  const last = decodeSafe(pathname.slice(pathname.lastIndexOf('/') + 1)).toLowerCase();
+  const dot = last.lastIndexOf('.');
+  if (dot < 0) return null;
+  const ext = last.slice(dot + 1).replace(/[\s.]+$/, '');
+  return DANGEROUS_EXTENSIONS.has(ext) ? ext : null;
 }
 
 function isIpAddress(host: string) {

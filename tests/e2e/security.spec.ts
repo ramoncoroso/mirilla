@@ -102,7 +102,7 @@ test('un enlace con caracteres invisibles (bidi) se trata como peligroso: aviso 
   const popup = await context.newPage();
   await popup.goto(`chrome-extension://${extId}/popup.html`);
   await popup.setInputFiles('#file', fixture('qr-bidi.png'));
-  await expect(popup.locator('.qr-card > .qr-danger')).toContainText('U+202E');
+  await expect(popup.locator('.qr-card .qr-danger').first()).toContainText('U+202E');
   await expect(popup.getByRole('button', { name: 'Open anyway' })).toBeVisible();
   await expect(popup.getByRole('button', { name: 'Open', exact: true })).toHaveCount(0);
 });

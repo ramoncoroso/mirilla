@@ -10,6 +10,7 @@ describe('analyzeUrl', () => {
       openable: true,
       host: 'www.labelic.com',
       href: 'https://www.labelic.com/precios',
+      domain: 'labelic.com',
       findings: [],
     });
   });
@@ -41,13 +42,14 @@ describe('analyzeUrl', () => {
   it('avisa de http, IPs, acortadores y puertos raros', () => {
     expect(levels('http://example.com')).toEqual(['warn']);
     expect(levels('https://192.168.1.10/admin')).toEqual(['warn']);
-    expect(levels('https://bit.ly/abc')).toEqual(['info']);
+    // Un acortador esconde el destino: es una señal de riesgo, no solo una nota.
+    expect(levels('https://bit.ly/abc')).toEqual(['warn']);
     expect(levels('https://example.com:8443/')).toEqual(['info']);
   });
 
-  it('palabras de phishing: pista (info) si van solas, aviso si hay otras señales', () => {
+  it('palabras de phishing: siempre una pista (info); la suma con otras señales la hace verdict.ts', () => {
     expect(analyzeUrl('https://secure-login.example.com').findings).toEqual([{ level: 'info', message: 'urlPhishingWords' }]);
-    expect(levels('http://secure-login.example.com')).toEqual(['warn', 'warn']);
+    expect(levels('http://secure-login.example.com')).toEqual(['warn', 'info']);
   });
 
   it('el punto final del host no esquiva las comprobaciones', () => {
@@ -108,5 +110,35 @@ describe('highlightRange', () => {
 
   it('no resalta un sufijo que no empieza en un límite de etiqueta', () => {
     expect(highlightRange('https://notexample.com/', 'example.com')).toBeNull();
+  });
+});
+
+describe('avisos nuevos (hito 4.0)', () => {
+  const msgs = (url: string) => analyzeUrl(url).findings.map((f) => f.message);
+
+  it('los dominios internacionales legítimos ya no son Peligro', () => {
+    expect(analyzeUrl('https://españa.es/').findings).toEqual([{ level: 'info', message: 'urlIdn', args: ['españa.es'] }]);
+    expect(levels('https://pаypal-cuenta.example/')).toContain('danger');
+    expect(msgs('https://сосо.com/')).toContain('urlReadsAs');
+  });
+
+  it('descargas de programas, esquemas que instalan apps y TLD que parecen ficheros', () => {
+    expect(analyzeUrl('https://example.com/descargas/Factura.PDF.exe').findings).toContainEqual({ level: 'danger', message: 'urlExecutable', args: ['.exe'] });
+    expect(msgs('https://example.com/app.apk?v=2')).toContain('urlExecutable');
+    // Las páginas web con extensión no son descargas.
+    expect(msgs('https://example.com/login.action')).not.toContain('urlExecutable');
+    expect(msgs('https://example.com/index.asp')).not.toContain('urlExecutable');
+    const r = analyzeUrl('itms-services://?action=download-manifest&url=https://x.example/m.plist');
+    expect(r.openable).toBe(false);
+    expect(r.findings[0]).toMatchObject({ level: 'danger', message: 'urlInstallScheme' });
+    expect(msgs('https://factura.zip/')).toContain('urlFileLikeTld');
+  });
+
+  it('marcas suplantadas y la misma marca en otro país', () => {
+    expect(analyzeUrl('https://paypal-secure.example/').findings).toContainEqual({ level: 'danger', message: 'urlBrand', args: ['PayPal', 'paypal.com'] });
+    expect(analyzeUrl('https://www.google.co.ke/').findings).toContainEqual({ level: 'info', message: 'urlBrandTld', args: ['Google', 'google.co.ke', 'google.com'] });
+    // El TLD propio de una marca es suyo.
+    expect(msgs('https://cloud.microsoft/')).toEqual([]);
+    expect(msgs('https://recetas.example/apple-pie')).toEqual([]);
   });
 });

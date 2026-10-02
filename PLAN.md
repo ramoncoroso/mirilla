@@ -123,18 +123,24 @@ función con prueba en Chromium y, si aplica, en Firefox; y revisión de segurid
 Decidido por el usuario (2026-09-27). Todo en local: nada se consulta a servicios externos.
 
 **Detectar más engaños**
-- [ ] **Suplantación de marcas**: lista local curada de las marcas más suplantadas con sus dominios oficiales (bancos,
+- [x] **Suplantación de marcas**: lista local curada de las marcas más suplantadas con sus dominios oficiales (bancos,
   PayPal, Amazon, Apple, Microsoft, Google, Netflix, DHL, Correos, SEUR, AEAT/Hacienda, DGT, Seguridad Social…),
   elegidas a partir de los informes de marcas más suplantadas (Check Point, APWG) y de los avisos de INCIBE/OSI.
   Si la URL menciona la marca (subdominio, dominio o ruta) y su dominio no es el oficial → Peligro:
   «Parece PayPal, pero no es paypal.com».
-- [ ] **Imitaciones de dominio** (typosquatting): distancia de edición con los dominios oficiales y sustituciones
-  típicas (`rn`→`m`, `0`→`o`, `1`→`l`, `vv`→`w`).
-- [ ] **Homógrafos**: «esqueleto» de Unicode (UTS #39) con `confusables.txt` (Unicode License v3; tabla reducida
-  generada al compilar e incluida con su aviso de licencia), para detectar mezclas de alfabetos que imitan a otro dominio.
-- [ ] **Enlaces escondidos en cualquier contenido**: extraer y analizar las URLs de textos («Paga aquí: https://…»),
+  *Hecho (2026-10-02)*: `lib/data/brands.ts` (81 marcas; dominios técnicos propios comprobados por RDAP/certificado) y
+  `lib/lookalike.ts`. Ajustes tras medir con Tranco: la marca en la ruta solo con palabras distintivas y como Precaución;
+  la misma marca con otro final (google.co.ke, vodafone.de) es una nota; los TLD de marca (cloud.microsoft) son suyos.
+- [x] **Imitaciones de dominio** (typosquatting): distancia de edición con los dominios oficiales y sustituciones
+  típicas (`rn`→`m`, `0`→`o`, `1`→`l`, `vv`→`w`). Sustitución → Peligro; errata (Damerau-Levenshtein, solo con nombres
+  distintivos de 6+ letras) → Precaución.
+- [x] **Homógrafos**: «esqueleto» de Unicode (UTS #39) con `confusables.txt` (Unicode License v3; tabla reducida
+  generada con `node scripts/gen-confusables.mjs` y guardada en `lib/data/confusables.ts` con su aviso de licencia),
+  para detectar mezclas de alfabetos que imitan a otro dominio. Los dominios internacionales legítimos (españa.es) ya
+  no son Peligro: solo si mezclan alfabetos, se leen como una marca o se leen como otro dominio ASCII.
+- [x] **Enlaces escondidos en cualquier contenido**: extraer y analizar las URLs de textos («Paga aquí: https://…»),
   cuerpos de SMS (smishing) y email, webs de contactos vCard, etc. Hoy solo se analiza si el código entero es una URL.
-- [ ] **Por tipo de contenido**:
+- [x] **Por tipo de contenido** (`lib/data/file-types.ts`, `lib/data/phone.ts`; lista de ejecutables curada para no marcar páginas como `/login.action`):
   - descargas de programas o instaladores (`.apk`, `.exe`, `.msi`, `.dmg`, `.scr`, `.bat`…; lista basada en la de
     tipos de fichero peligrosos de Chromium, BSD) y esquemas que instalan apps (`itms-services://`, `intent://`) → Peligro;
   - teléfonos con códigos USSD (`*`, `#`) → Peligro; números de tarificación especial (803, 806, 807, 905… en España;
@@ -142,10 +148,10 @@ Decidido por el usuario (2026-09-27). Todo en local: nada se consulta a servicio
   - WiFi abierta o con WEP → Precaución;
   - TLD que se confunden con ficheros (`.zip`, `.mov`) → Precaución.
 
-- [ ] **Mis sitios de confianza**: el usuario marca sus dominios (su banco, su ayuntamiento, su empresa) en una página de
+- [ ] **Mis sitios de confianza** (*lógica hecha* en `lookalike.ts`/`verdict.ts`; falta `options.html` y cargar el contexto): el usuario marca sus dominios (su banco, su ayuntamiento, su empresa) en una página de
   ajustes nueva (`options.html`). Un QR que lleva a uno de ellos → ✅ «Es tu banco (sitio de confianza)»; uno que se le
   parece (imitación, homógrafo, marca en otro dominio) → ⛔ «Imita a tu banco». Más preciso que cualquier lista genérica.
-- [ ] **Familiaridad**: con el historial de Mirilla (sin pedir el permiso de historial del navegador) y los sitios de
+- [ ] **Familiaridad** (*lógica hecha* en `verdict.ts`; falta cargar los dominios del historial): con el historial de Mirilla (sin pedir el permiso de historial del navegador) y los sitios de
   confianza, señal «Nunca habías ido a este dominio desde Mirilla». Es informativa sola, pero suma en la puntuación
   combinada (el fraude casi siempre llega desde un dominio nuevo para la víctima). Si el historial está desactivado, se
   explica que esta señal no está disponible.

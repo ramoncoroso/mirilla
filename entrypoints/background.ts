@@ -194,7 +194,7 @@ async function captureAndDecode(tab: Tab, rect?: Rect, viewportWidth?: number): 
 async function finish(tab: Tab, codes: Code[]) {
   const tabId = tab.id!;
   send(tabId, { type: 'show-results', codes });
-  void markTab(tabId, codes.some(isDangerous));
+  void markTab(tabId, codes.some((c) => isDangerous(c)));
   // Nada de ventanas privadas en el historial. Un fallo al guardarlo no debe tapar los resultados ya mostrados.
   if (!tab.incognito) await addToHistory(codes, tab.url ?? '').catch(console.error);
 }

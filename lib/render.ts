@@ -7,31 +7,31 @@ import type { Code } from './decode';
 import { gtinPrefix, ISO_COUNTRY, ISO_CURRENCY, parseGs1Date, type Gs1Element } from './gs1';
 import { t } from './i18n';
 import { parseCode, type Parsed } from './parse';
-import { hiddenChars, revealHidden } from './unicode';
-import { analyzeUrl, highlightRange } from './url-safety';
+import { revealHidden } from './unicode';
+import { highlightRange, type Finding } from './url-safety';
+import { assess, DEFAULT_CONTEXT, type AssessContext, type Assessment, type LinkCheck } from './verdict';
 
 export interface RenderActions {
   openUrl(url: string): void;
   copy(text: string): Promise<void>;
 }
 
-export function renderCodes(codes: Code[], actions: RenderActions): HTMLElement {
+export function renderCodes(codes: Code[], actions: RenderActions, ctx: AssessContext = DEFAULT_CONTEXT): HTMLElement {
   const list = el('div', 'qr-list');
-  for (const code of codes) list.append(renderCode(code, actions));
+  for (const code of codes) list.append(renderCode(code, actions, ctx));
   return list;
 }
 
-export function renderCode(code: Code, actions: RenderActions): HTMLElement {
+export function renderCode(code: Code, actions: RenderActions, ctx: AssessContext = DEFAULT_CONTEXT): HTMLElement {
   const parsed = parseCode(code);
+  const assessment = assess(code, ctx, parsed);
   const card = el('article', 'qr-card');
+  card.dataset.verdict = assessment.verdict;
   const head = el('header', 'qr-head');
   const kind = parsed.kind === 'url' && parsed.gs1 ? 'kindDigitalLink' : KIND_LABEL[parsed.kind];
   head.append(el('span', 'qr-badge', code.format), el('span', 'qr-kind', t(kind)));
   card.append(head);
-  // Invisibles y controles bidi hacen que el texto se vea distinto de lo que es: aviso en cualquier tipo de contenido.
-  const hidden = hiddenChars(code.text);
-  if (hidden.length > 0) card.append(el('p', 'qr-finding qr-danger', t('hiddenChars', hidden.join(', '))));
-  card.append(renderBody(parsed, code, actions));
+  card.append(renderBody(parsed, code, assessment, actions));
   return card;
 }
 
@@ -49,25 +49,21 @@ const KIND_LABEL: Record<Parsed['kind'], MessageKey> = {
   product: 'kindProduct',
 };
 
-function renderBody(p: Parsed, code: Code, a: RenderActions): HTMLElement {
+function renderBody(p: Parsed, code: Code, as: Assessment, a: RenderActions): HTMLElement {
   const body = el('div', 'qr-body');
   const buttons = el('div', 'qr-actions');
+  // Los avisos del contenido (invisibles, teléfono, WiFi, IBAN, GS1...) van arriba, antes de los datos.
+  body.append(...findingsList(as.findings));
 
   switch (p.kind) {
     case 'url': {
       // Un Digital Link muestra primero sus datos GS1 y después el análisis de la URL, como cualquier enlace.
       if (p.gs1) renderGs1(body, p.gs1);
-      const report = analyzeUrl(p.url);
-      // Se muestra la URL normalizada: es la que abrirá el navegador (%70aypal.com → paypal.com, mayúsculas, punycode...).
-      body.append(renderUrl(report.href, report.host));
-      for (const f of report.findings) body.append(el('p', `qr-finding qr-${f.level}`, t(f.message, ...(f.args ?? []))));
-      if (report.openable) {
-        // Los caracteres ocultos se avisan a nivel de tarjeta, pero también hacen peligroso el enlace.
-        const dangerous = report.findings.some((f) => f.level === 'danger') || hiddenChars(p.url).length > 0;
-        const open = button(dangerous ? t('openAnyway') : t('open'), () => a.openUrl(report.href));
-        if (dangerous) open.classList.add('qr-btn-danger');
-        else open.classList.add('qr-btn-primary');
-        buttons.append(open);
+      if (as.link) {
+        // Los caracteres ocultos se avisan en el contenido, pero también hacen peligroso el enlace.
+        const dangerous = as.link.verdict === 'danger' || as.findings.some((f) => f.message === 'hiddenChars');
+        body.append(...renderLink(as.link));
+        if (as.link.report.openable) buttons.append(openButton(as.link.report.href, dangerous, a));
       }
       break;
     }
@@ -111,7 +107,6 @@ function renderBody(p: Parsed, code: Code, a: RenderActions): HTMLElement {
           [t('fieldReference'), p.reference],
         ]),
       );
-      if (!p.ibanValid) body.append(el('p', 'qr-finding qr-danger', t('ibanInvalid')));
       body.append(el('p', 'qr-finding qr-info', t('sepaWarning')));
       buttons.append(copyButton(t('copyIban'), p.iban, a));
       break;
@@ -120,7 +115,6 @@ function renderBody(p: Parsed, code: Code, a: RenderActions): HTMLElement {
       break;
     case 'gs1': {
       renderGs1(body, p.elements);
-      if (p.rest) body.append(el('p', 'qr-finding qr-info', t('gs1Unparsed', p.rest)));
       const gtin = p.elements.find((e) => e.ai === '01');
       if (gtin) buttons.append(copyButton(t('copyGtin'), gtin.value, a));
       break;
@@ -131,17 +125,48 @@ function renderBody(p: Parsed, code: Code, a: RenderActions): HTMLElement {
       break;
   }
 
+  // Enlaces escondidos en el contenido, cada uno con su análisis y su botón.
+  if (as.embedded.length > 0) {
+    const box = el('section', 'qr-embedded');
+    box.append(el('h3', 'qr-embedded-title', t('embeddedLinks')));
+    for (const link of as.embedded) {
+      const item = el('div', 'qr-embedded-link');
+      item.append(...renderLink(link));
+      if (link.report.openable) {
+        const row = el('div', 'qr-actions');
+        row.append(openButton(link.report.href, link.verdict === 'danger', a), copyButton(t('copyLink'), link.report.href, a));
+        item.append(row);
+      }
+      box.append(item);
+    }
+    body.append(box);
+  }
+
   buttons.append(copyButton(p.kind === 'text' ? t('copy') : t('copyContent'), code.text, a));
   body.append(buttons);
   return body;
 }
 
+/** La URL normalizada (la que abrirá el navegador: %70aypal.com → paypal.com, punycode...) y sus avisos. */
+function renderLink(link: LinkCheck): HTMLElement[] {
+  return [renderUrl(link.report.href, link.report.host), ...findingsList(link.findings)];
+}
+
+function findingsList(findings: readonly Finding[]): HTMLElement[] {
+  return findings.map((f) => el('p', `qr-finding qr-${f.level}`, t(f.message, ...(f.args ?? []))));
+}
+
+function openButton(href: string, dangerous: boolean, a: RenderActions) {
+  const open = button(dangerous ? t('openAnyway') : t('open'), () => a.openUrl(href));
+  open.classList.add(dangerous ? 'qr-btn-danger' : 'qr-btn-primary');
+  return open;
+}
+
 // ---- GS1 ----
 
-/** Lista de datos GS1 con etiquetas traducidas, valores formateados y avisos (dígito de control, caducado). */
+/** Lista de datos GS1 con etiquetas traducidas y valores formateados (los avisos los da verdict.ts). */
 function renderGs1(body: HTMLElement, elements: Gs1Element[]) {
   const rows: [string, string][] = [];
-  const findings: HTMLElement[] = [];
   let prefixNote = false;
   for (const e of elements) {
     const label = e.def?.label ? t(e.def.label) : (e.def?.title ?? 'AI');
@@ -150,14 +175,8 @@ function renderGs1(body: HTMLElement, elements: Gs1Element[]) {
       rows.push(...prefixRow(e.value));
       prefixNote ||= isCountryPrefix(e.value);
     }
-    if (e.malformed) findings.push(el('p', 'qr-finding qr-warn', t('gs1Malformed', `(${e.ai})`, e.malformed.expected, String(e.malformed.actual))));
-    if (e.checkDigitOk === false) findings.push(el('p', 'qr-finding qr-danger', t('gs1BadCheckDigit', `(${e.ai})`, e.expectedCheckDigit ?? '')));
-    if (e.ai === '17') {
-      const d = parseGs1Date(e.value);
-      if (d && d.date < startOfToday()) findings.push(el('p', 'qr-finding qr-warn', t('gs1Expired')));
-    }
   }
-  body.append(dl(rows), ...findings);
+  body.append(dl(rows));
   if (prefixNote) body.append(el('p', 'qr-note', t('gs1PrefixNote')));
 }
 
@@ -216,12 +235,6 @@ function regionName(code: string | undefined): string | undefined {
   } catch {
     return code;
   }
-}
-
-function startOfToday() {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d;
 }
 
 /** Muestra la URL completa con el dominio principal resaltado, que es lo que decide adónde va. */
@@ -321,6 +334,9 @@ export const RESULT_CSS = `
 .qr-danger { background: var(--qr-danger-bg); color: var(--qr-danger-fg); }
 .qr-warn { background: var(--qr-warn-bg); color: var(--qr-warn-fg); }
 .qr-info { background: var(--qr-info-bg); color: var(--qr-info-fg); }
+.qr-embedded { margin-top: 8px; padding-top: 6px; border-top: 1px dashed var(--qr-border); }
+.qr-embedded-title { font-size: 12px; font-weight: 600; margin: 0 0 4px; color: var(--qr-muted); }
+.qr-embedded-link + .qr-embedded-link { margin-top: 8px; }
 .qr-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .qr-btn { font: inherit; font-size: 12px; text-decoration: none; padding: 5px 10px; border-radius: 6px; border: 1px solid var(--qr-border); background: var(--qr-bg); color: var(--qr-fg); cursor: pointer; }
 .qr-btn:hover { border-color: var(--qr-muted); }
