@@ -173,9 +173,11 @@ Decidido por el usuario (2026-09-27). Todo en local: nada se consulta a servicio
 - [x] **Icono de la extensión** (*hecho 2026-10-03*, `overallVerdict` en `lib/risk.ts`): «!» rojo para Peligro (ya existe) y marca amarilla para Precaución.
 
 **Actuar con un clic**
-- [ ] **Denunciar**: en resultados en Peligro o Precaución, botón que abre ya rellenos los formularios de denuncia (Google
+- [x] **Denunciar**: en resultados en Peligro o Precaución, botón que abre ya rellenos los formularios de denuncia (Google
   Safe Browsing, URLhaus; INCIBE en español) con la URL. Solo si el usuario lo pulsa; nada se envía solo.
-- [ ] **Limpiar rastreadores**: al abrir o copiar un enlace, quitar parámetros de seguimiento (`utm_*`, `fbclid`, `gclid`,
+  *Hecho 2026-10-03*: el formulario de Safe Browsing no admite la URL rellena (sin documentar), así que se copia y se abre;
+  en castellano, email ya redactado a `incidencias@incibe-cert.es`. URLhaus exige cuenta: descartado.
+- [x] **Limpiar rastreadores** (*hecho 2026-10-03*, `lib/data/trackers.ts`; ajuste en `options.html`, activado por defecto): al abrir o copiar un enlace, quitar parámetros de seguimiento (`utm_*`, `fbclid`, `gclid`,
   `mc_eid`, `igshid`…); lista con tests y opción para desactivarlo. Nunca se tocan parámetros necesarios (se limita a una
   lista conocida).
 

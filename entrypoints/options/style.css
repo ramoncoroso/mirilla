@@ -6,6 +6,9 @@ body {
 main { max-width: 640px; margin: 0 auto; padding: 24px 16px; }
 h1 { font-size: 20px; margin: 0 0 16px; }
 h2 { font-size: 16px; margin: 0 0 4px; }
+section + section { margin-top: 28px; }
+.check { display: flex; gap: 8px; align-items: flex-start; }
+.check input { margin-top: 4px; }
 .help, .status { color: var(--qr-muted); margin: 0 0 12px; }
 .status:empty { display: none; }
 form { display: flex; gap: 8px; margin-bottom: 8px; }

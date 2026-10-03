@@ -26,6 +26,8 @@ export interface AssessContext {
   known: ReadonlySet<string> | null;
   /** El usuario desactivó el historial: la señal de familiaridad no está disponible (se explica en una nota). */
   historyOff?: boolean;
+  /** Preferencia de la interfaz, no del veredicto: quitar parámetros de rastreo al abrir o copiar. */
+  cleanLinks?: boolean;
 }
 
 export interface LinkCheck {

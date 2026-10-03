@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
-import { addTrustedSite, getTrustedSites, linkDomains, loadContextData, normalizeSite, removeTrustedSite, toAssessContext } from '@/lib/context';
+import { addTrustedSite, getCleanLinks, getTrustedSites, linkDomains, loadContextData, normalizeSite, removeTrustedSite, setCleanLinks, toAssessContext } from '@/lib/context';
 import { addToHistory, setHistoryEnabled } from '@/lib/history';
 import { assessUrl } from '@/lib/verdict';
 
@@ -104,29 +104,41 @@ describe('loadContextData', () => {
 
 describe('toAssessContext + assessUrl (integración)', () => {
   it('un sitio de confianza da veredicto "trusted", con el aviso en primer lugar', () => {
-    const ctx = toAssessContext({ trusted: ['mibanco.es'], known: ['mibanco.es'] });
+    const ctx = toAssessContext({ trusted: ['mibanco.es'], known: ['mibanco.es'], cleanLinks: true });
     const result = assessUrl('https://mibanco.es/login', ctx);
     expect(result.verdict).toBe('trusted');
     expect(result.findings[0]?.message).toBe('verdictTrustedDetail');
   });
 
   it('una imitación de un sitio de confianza da "danger"', () => {
-    const ctx = toAssessContext({ trusted: ['mibancolocal.es'], known: [] });
+    const ctx = toAssessContext({ trusted: ['mibancolocal.es'], known: [], cleanLinks: true });
     const result = assessUrl('https://mibancoloca1.es/', ctx);
     expect(result.verdict).toBe('danger');
     expect(result.findings.some((f) => f.message === 'urlImitatesTrusted')).toBe(true);
   });
 
   it('un dominio que no está en «known» da el aviso de primera visita', () => {
-    const ctx = toAssessContext({ trusted: [], known: [] });
+    const ctx = toAssessContext({ trusted: [], known: [], cleanLinks: true });
     const result = assessUrl('https://www.labelic.com/', ctx);
     expect(result.findings.some((f) => f.message === 'urlFirstVisit')).toBe(true);
   });
 
   it('con el historial desactivado avisa de que falta la señal, sin cambiar el veredicto', () => {
-    const ctx = toAssessContext({ trusted: [], known: null });
+    const ctx = toAssessContext({ trusted: [], known: null, cleanLinks: true });
     const result = assessUrl('https://www.labelic.com/', ctx);
     expect(result.findings.some((f) => f.message === 'urlFamiliarityOff')).toBe(true);
     expect(result.verdict).toBe('clear');
+  });
+});
+
+describe('quitar rastreadores (ajuste)', () => {
+  beforeEach(() => fakeBrowser.reset());
+
+  it('activado por defecto, desactivable y llega al contexto', async () => {
+    expect(await getCleanLinks()).toBe(true);
+    expect((await loadContextData()).cleanLinks).toBe(true);
+    await setCleanLinks(false);
+    expect(await getCleanLinks()).toBe(false);
+    expect(toAssessContext(await loadContextData()).cleanLinks).toBe(false);
   });
 });
