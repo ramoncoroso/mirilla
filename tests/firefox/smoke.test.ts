@@ -1,9 +1,11 @@
 // Pruebas de humo en Firefox real (geckodriver + Selenium), con la build E2E instalada como complemento temporal.
 // Se ejecuta con: npm run test:firefox
 //
-// geckodriver no deja navegar a moz-extension:// ni ejecutar scripts en páginas de extensión, así que:
-// - la build E2E abre popup.html en una pestaña al instalarse (entrypoints/background.ts), y
-// - el test controla la extensión con el puente de lib/e2e-bridge.ts (escribir orden → pulsar → leer resultado).
+// Firefox 157+ no deja que geckodriver toque las pestañas moz-extension:// (ni navegar, ni leer, ni pulsar), así que:
+// - el test manda órdenes desde la propia página de pruebas (http) con postMessage; el script de contenido e2e-relay
+//   (solo en la build E2E) las pasa al background, que las ejecuta (lib/e2e-bridge.ts);
+// - lo que se comprueba de la interfaz se mira en el panel de la página (shadow root abierto en la build E2E).
+//   El popup en sí (fichero, pegar) se prueba en Chromium.
 
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -15,9 +17,6 @@ import { download } from 'geckodriver';
 import { Builder, By, Origin, until, type WebDriver } from 'selenium-webdriver';
 import firefox from 'selenium-webdriver/firefox.js';
 
-const ADDON_ID = 'mirilla@ramoncoroso.github.io';
-const UUID = '5b1f1c1e-6a1d-4c39-9e38-7d0d6f1b6e11';
-const POPUP = `moz-extension://${UUID}/popup.html`;
 const fixture = (name: string) => path.resolve('tests/e2e/fixtures', name);
 const MIME: Record<string, string> = { '.png': 'image/png', '.svg': 'image/svg+xml' };
 
@@ -34,12 +33,8 @@ function page(pathname: string, body: string) {
 
 // ---- Navegador ----
 
-const popupHandles = new WeakMap<WebDriver, string>();
-
 async function launch(prefs: Record<string, string | number | boolean> = {}): Promise<WebDriver> {
   const options = new firefox.Options().addArguments('-headless').windowSize({ width: 1280, height: 800 });
-  // UUID fijo para reconocer la pestaña moz-extension:// del popup.
-  options.setPreference('extensions.webextensions.uuids', JSON.stringify({ [ADDON_ID]: UUID }));
   for (const [k, v] of Object.entries(prefs)) options.setPreference(k, v);
   const driver = await new Builder()
     .forBrowser('firefox')
@@ -47,48 +42,51 @@ async function launch(prefs: Record<string, string | number | boolean> = {}): Pr
     .setFirefoxService(new firefox.ServiceBuilder(await download()))
     .build();
   await (driver as firefox.Driver).installAddon(path.resolve(process.env.MIRILLA_XPI!), true);
-
-  let popup = '';
-  await driver.wait(async () => {
-    for (const handle of await driver.getAllWindowHandles()) {
-      await driver.switchTo().window(handle);
-      if ((await driver.getCurrentUrl()) === POPUP) popup = handle;
-    }
-    return popup !== '';
-  }, 10000);
-  popupHandles.set(driver, popup);
-  await closeOtherTabs(driver);
+  await driver.get(page('/control', '<p>Mirilla E2E</p>'));
   return driver;
 }
 
-async function closeOtherTabs(driver: WebDriver) {
-  const popup = popupHandles.get(driver)!;
-  for (const handle of await driver.getAllWindowHandles()) {
-    if (handle === popup) continue;
+/** Deja solo la primera ventana, en la página de control. */
+async function reset(driver: WebDriver) {
+  const [first, ...rest] = await driver.getAllWindowHandles();
+  for (const handle of rest) {
     await driver.switchTo().window(handle);
     await driver.close();
   }
-  await driver.switchTo().window(popup);
+  await driver.switchTo().window(first!);
+  await driver.get(page('/control', '<p>Mirilla E2E</p>'));
 }
 
 let seq = 0;
 
-/** Ejecuta una orden del puente E2E en el popup y vuelve a la pestaña en la que se estaba. */
+/** Ejecuta una orden en el background desde la página actual (que debe ser de la web de pruebas). */
 async function bridge<T>(driver: WebDriver, cmd: Record<string, unknown>): Promise<T> {
-  const current = await driver.getWindowHandle();
-  await driver.switchTo().window(popupHandles.get(driver)!);
+  await driver.wait(async () => (await driver.executeScript('return document.documentElement.dataset.mirillaE2e')) === 'ready', 10000);
   const id = ++seq;
-  const input = await driver.findElement(By.id('e2e-cmd'));
-  await input.clear();
-  await input.sendKeys(JSON.stringify({ ...cmd, seq: id }));
-  await driver.findElement(By.id('e2e-run')).click();
-  const out = await driver.findElement(By.id('e2e-out'));
-  // getDomAttribute/getText son comandos nativos; getAttribute inyecta un script y falla en páginas de extensión.
-  await driver.wait(async () => (await out.getDomAttribute('data-seq')) === String(id), 15000);
-  const result = JSON.parse(await out.getText()) as { ok: boolean; value: T; error?: string };
-  await driver.switchTo().window(current);
-  if (!result.ok) throw new Error(`puente E2E (${String(cmd.op)}): ${result.error}`);
+  const result = await driver.executeAsyncScript<{ ok: boolean; value: T; error?: string }>(
+    `const [cmd, seq, done] = arguments;
+     addEventListener('message', function h(e) {
+       if (e.data?.mirillaE2EResult?.seq !== seq) return;
+       removeEventListener('message', h);
+       done(e.data.mirillaE2EResult.result);
+     });
+     postMessage({ mirillaE2E: { seq, cmd } }, '*');`,
+    cmd,
+    id,
+  );
+  if (!result?.ok) throw new Error(`puente E2E (${String(cmd.op)}): ${result?.error}`);
   return result.value;
+}
+
+/** Texto de un elemento dentro del panel de Mirilla (shadow root abierto solo en la build E2E). */
+async function panelText(driver: WebDriver, css: string): Promise<string | null> {
+  return driver.executeScript<string | null>(`return document.querySelector('mirilla-ui')?.shadowRoot?.querySelector(arguments[0])?.textContent ?? null`, css);
+}
+
+async function waitPanel(driver: WebDriver, css: string, ms = 8000): Promise<string> {
+  let text: string | null = null;
+  await driver.wait(async () => (text = await panelText(driver, css)) !== null, ms);
+  return text!;
 }
 
 const history = (driver: WebDriver) => bridge<string[]>(driver, { op: 'history' });
@@ -104,10 +102,7 @@ async function waitHistory(driver: WebDriver, expected: (h: string[]) => boolean
   assert.fail(`historial inesperado: ${JSON.stringify(last)}`);
 }
 
-/**
- * Abre la página en una ventana nueva y devuelve su tabId. Ventana y no pestaña: en Firefox, cambiar a la
- * pestaña del popup para usar el puente la activa, y captureVisibleTab capturaría el popup.
- */
+/** Abre la página en una ventana nueva (con su propio tamaño de viewport) y devuelve su tabId. */
 async function openTab(driver: WebDriver, url: string): Promise<number> {
   await driver.switchTo().newWindow('window');
   // Las ventanas nuevas no heredan el tamaño de la principal.
@@ -165,33 +160,45 @@ describe('Firefox', () => {
   });
   after(async () => driver?.quit());
   beforeEach(async () => {
-    // Cada prueba empieza con el historial vacío y solo la pestaña del popup.
-    await closeOtherTabs(driver);
+    // Cada prueba empieza con el almacenamiento vacío y solo la ventana de control.
+    await reset(driver);
     await bridge(driver, { op: 'clear' });
   });
 
-  test('el popup decodifica un fichero (WASM con la CSP de MV3) y marca el enlace peligroso', async () => {
-    assert.equal(await driver.findElement(By.id('scan')).getText(), 'Scan visible area');
-    // El input de fichero está oculto; geckodriver permite subir ficheros a inputs ocultos.
-    await driver.findElement(By.id('file')).sendKeys(fixture('qr-wifi.png'));
-    const kind = await driver.wait(until.elementLocated(By.css('.qr-kind')), 8000);
-    await driver.wait(until.elementTextIs(kind, 'Wi-Fi network'), 8000);
-    await driver.findElement(By.id('file')).sendKeys(fixture('qr-url.png'));
-    await driver.wait(until.elementLocated(By.css('.qr-danger')), 8000);
-    assert.match(await driver.findElement(By.css('.qr-danger')).getText(), /www\.paypal\.com@/);
-    assert.equal(await driver.findElement(By.css('.qr-domain')).getText(), 'evil.example');
+  test('lee una imagen en el background (WASM con la CSP de MV3) y el panel marca el enlace peligroso', async () => {
+    const tabId = await openTab(driver, page('/peligro', `<img src="/fixtures/qr-url.png" style="position:absolute;left:40px;top:40px">`));
+    await callMenu(driver, 'readImage', tabId, `${origin}/fixtures/qr-url.png`);
+    assert.match(await waitPanel(driver, '.qr-danger'), /www\.paypal\.com@/);
+    assert.equal(await panelText(driver, '.qr-domain'), 'evil.example');
+    assert.equal(await panelText(driver, '.qr-verdict-label'), 'Danger');
+    assert.equal(await bridge(driver, { op: 'badge', tabId }), '!');
   });
 
   test('GS1: interpreta un Data Matrix con AIs y un código generado se vuelve a leer', async () => {
-    await driver.findElement(By.id('file')).sendKeys(fixture('datamatrix-gs1.png'));
-    const kind = await driver.wait(until.elementLocated(By.css('.qr-card .qr-kind')), 8000);
-    await driver.wait(until.elementTextIs(kind, 'GS1 data'), 8000);
-    const value = async (label: string) =>
-      driver.findElement(By.xpath(`//dl[@class='qr-dl']/dt[normalize-space()='${label}']/following-sibling::dd[1]`)).getText();
-    assert.equal(await value('Batch/lot (10)'), 'LOTE42');
-    assert.equal(await value('Net weight (3103)'), '1.250 kg');
-    assert.equal(await value('GS1 prefix'), 'Spain, Andorra');
+    const tabId = await openTab(driver, page('/gs1', `<img src="/fixtures/datamatrix-gs1.png" style="position:absolute;left:40px;top:40px">`));
+    await callMenu(driver, 'readImage', tabId, `${origin}/fixtures/datamatrix-gs1.png`);
+    assert.equal(await waitPanel(driver, '.qr-card .qr-kind'), 'GS1 data');
+    const rows = await driver.executeScript<Record<string, string>>(`
+      const dl = document.querySelector('mirilla-ui').shadowRoot.querySelector('.qr-dl');
+      return Object.fromEntries([...dl.querySelectorAll('dt')].map((dt) => [dt.textContent.trim(), dt.nextElementSibling.textContent]));`);
+    assert.equal(rows['Batch/lot (10)'], 'LOTE42');
+    assert.equal(rows['Net weight (3103)'], '1.250 kg');
+    assert.equal(rows['GS1 prefix'], 'Spain, Andorra');
     assert.deepEqual(await bridge(driver, { op: 'roundTrip', text: 'https://example.com/firefox' }), ['https://example.com/firefox']);
+  });
+
+  test('sitios de confianza: el panel marca ✅ el propio y ⛔ su imitación', async () => {
+    await bridge(driver, { op: 'setStorage', items: { trustedSites: ['mibancolocal.es'] } });
+    const tabId = await openTab(
+      driver,
+      page('/confianza', `<img src="/fixtures/qr-trusted.png" style="position:absolute;left:40px;top:40px">
+                          <img src="/fixtures/qr-imita.png" style="position:absolute;left:40px;top:400px">`),
+    );
+    await callMenu(driver, 'readImage', tabId, `${origin}/fixtures/qr-trusted.png`);
+    assert.equal(await waitPanel(driver, '.qr-verdict-trusted .qr-verdict-label'), 'Trusted site');
+    await callMenu(driver, 'readImage', tabId, `${origin}/fixtures/qr-imita.png`);
+    assert.equal(await waitPanel(driver, '.qr-verdict-danger .qr-verdict-label'), 'Danger');
+    assert.match((await panelText(driver, '.qr-danger'))!, /one of your trusted sites/);
   });
 
   test('seleccionar área: inyecta, captura, recorta y decodifica en el background', async () => {
