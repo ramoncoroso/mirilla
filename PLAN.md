@@ -262,15 +262,15 @@ descarga periódicamente una lista completa y compara en el equipo, como Safe Br
   recuadro cae sobre su imagen).
 
 #### 4.3 Nuevos tipos de contenido — tamaño M
-- [ ] **Eventos de calendario** (`BEGIN:VEVENT`, también dentro de `VCALENDAR`): título, inicio/fin con zona horaria,
+- [x] **Eventos de calendario** (*hecho 2026-10-03*) (`BEGIN:VEVENT`, también dentro de `VCALENDAR`): título, inicio/fin con zona horaria,
   lugar y descripción, con fechas en el idioma de la interfaz; botón «Añadir al calendario» que descarga un `.ics` generado
   en local.
-- [ ] **2FA** (`otpauth://totp|hotp`): emisor y cuenta; el secreto **oculto** por defecto (botón para mostrarlo); aviso de
+- [x] **2FA** (*hecho*; además no se ofrece «Copiar contenido», que copiaría la clave) (`otpauth://totp|hotp`): emisor y cuenta; el secreto **oculto** por defecto (botón para mostrarlo); aviso de
   que solo se escanean desde la página de ajustes del propio servicio (un QR de 2FA ajeno puede vincular tu cuenta a un
   atacante). Deja de tratarse como «esquema no web».
-- [ ] **Pagos cripto** (`bitcoin:`, `ethereum:`, `lightning:`; BIP 21 / EIP 681): dirección, importe y etiqueta; validación
+- [x] **Pagos cripto** (*hecho*; Ethereum solo formato, sin checksum EIP-55, que exigiría Keccak) (`bitcoin:`, `ethereum:`, `lightning:`; BIP 21 / EIP 681): dirección, importe y etiqueta; validación
   de la dirección de Bitcoin (checksum Base58Check / Bech32) y aviso de que los pagos son irreversibles.
-- [ ] Todos pasan por `lib/risk.ts` (el «!» del icono) y por el detector de caracteres ocultos.
+- [x] Todos pasan por `lib/risk.ts` (el «!» del icono) y por el detector de caracteres ocultos.
 - [ ] **Añadidos EAN-2 y EAN-5** (los códigos pequeños junto al EAN de revistas y libros: número de edición o precio):
   hoy no se leen porque zxing los ignora por defecto (`eanAddOnSymbol: 'Ignore'`). Activar `'Read'` y mostrar el añadido
   en el resultado del producto (en libros ISBN, el EAN-5 que empieza por 5 es el precio en USD; por 0, en GBP).

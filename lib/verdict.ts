@@ -66,6 +66,8 @@ const WEIGHTS: Partial<Record<MessageKey, number>> = {
   urlBrandTld: 1,
   urlFirstVisit: 1,
   gs1Expired: 0,
+  // Se muestra siempre (no va plegado), pero un pago cripto no es sospechoso por serlo.
+  cryptoIrreversible: 0,
   gs1Malformed: 0,
 };
 const CAUTION_SCORE = 2;
@@ -166,6 +168,18 @@ export function assess(code: Code, ctx: AssessContext = DEFAULT_CONTEXT, parsed:
       embedded.push(...extractLinks(parsed.query));
       break;
     case 'product':
+      break;
+    case 'event':
+      embedded.push(...extractLinks(`${parsed.location}\n${parsed.description}`));
+      break;
+    case 'otp':
+      // Un QR de 2FA ajeno puede vincular tu cuenta a un atacante: siempre Precaución.
+      findings.push({ level: 'warn', message: 'otpWarning' });
+      break;
+    case 'crypto':
+      if (parsed.addressValid === false) findings.push({ level: 'danger', message: parsed.coin === 'bitcoin' ? 'cryptoBadAddress' : 'cryptoEthFormat' });
+      findings.push({ level: 'warn', message: 'cryptoIrreversible' });
+      embedded.push(...extractLinks(`${parsed.label}\n${parsed.message}`));
       break;
   }
 

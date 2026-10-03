@@ -19,7 +19,8 @@ describe('parseContent', () => {
     expect(parseContent('SN:ABC123').kind).toBe('text');
     expect(parseContent('Lote:42').kind).toBe('text');
     // Esquemas que abren otras aplicaciones sí pasan por el análisis de enlaces.
-    expect(parseContent('otpauth://totp/Ejemplo?secret=ABC').kind).toBe('url');
+    // (otpauth sin «secret» no se puede mostrar como OTP, así que también pasa por ahí.)
+    expect(parseContent('otpauth://totp/Ejemplo').kind).toBe('url');
     expect(parseContent('intent://scan/#Intent;scheme=zxing;end').kind).toBe('url');
   });
 
@@ -79,6 +80,185 @@ describe('parseContent', () => {
     // U+202E (RLO) invertiría cómo se ve el IBAN; no debe llegar al valor ni a lo que se copia.
     expect(parseContent(epc('ES91\u202E2100041845020005\u202C1332'))).toMatchObject({ iban: 'ES9121000418450200051332', ibanValid: true });
     expect(parseContent(epc('ES9121000418450200051333'))).toMatchObject({ ibanValid: false });
+  });
+});
+
+describe('parseContent: eventos (VEVENT/VCALENDAR)', () => {
+  it('fecha completa (VALUE=DATE): evento de todo el día', () => {
+    const vevent = [
+      'BEGIN:VEVENT',
+      'SUMMARY:Cumpleaños',
+      'DTSTART;VALUE=DATE:20261003',
+      'DTEND;VALUE=DATE:20261004',
+      'END:VEVENT',
+    ].join('\r\n');
+    const p = parseContent(vevent);
+    expect(p).toMatchObject({
+      kind: 'event',
+      title: 'Cumpleaños',
+      start: { iso: '2026-10-03', allDay: true, tz: '' },
+      end: { iso: '2026-10-04', allDay: true, tz: '' },
+    });
+  });
+
+  it('fecha UTC ("Z")', () => {
+    const vevent = 'BEGIN:VEVENT\r\nSUMMARY:Reunión\r\nDTSTART:20261003T100000Z\r\nEND:VEVENT';
+    const p = parseContent(vevent);
+    expect(p).toMatchObject({ kind: 'event', start: { iso: '2026-10-03T10:00:00Z', allDay: false, tz: 'UTC' } });
+  });
+
+  it('fecha con TZID', () => {
+    const vevent = 'BEGIN:VEVENT\r\nSUMMARY:Reunión\r\nDTSTART;TZID=Europe/Madrid:20261003T100000\r\nEND:VEVENT';
+    const p = parseContent(vevent);
+    expect(p).toMatchObject({ kind: 'event', start: { iso: '2026-10-03T10:00:00', allDay: false, tz: 'Europe/Madrid' } });
+  });
+
+  it('fecha flotante (sin zona)', () => {
+    const vevent = 'BEGIN:VEVENT\r\nSUMMARY:Reunión\r\nDTSTART:20261003T100000\r\nEND:VEVENT';
+    const p = parseContent(vevent);
+    expect(p).toMatchObject({ kind: 'event', start: { iso: '2026-10-03T10:00:00', allDay: false, tz: '' } });
+  });
+
+  it('fecha inválida → undefined', () => {
+    const vevent = 'BEGIN:VEVENT\r\nSUMMARY:Reunión\r\nDTSTART:20261332T100000\r\nEND:VEVENT';
+    const p = parseContent(vevent);
+    expect(p).toMatchObject({ kind: 'event', start: undefined });
+  });
+
+  it('despliega líneas plegadas (RFC 5545) y desescapa DESCRIPTION', () => {
+    const vevent = [
+      'BEGIN:VEVENT',
+      'SUMMARY:Reunión larga que se pl',
+      ' iega en varias líneas',
+      'DESCRIPTION:Línea 1\\nLínea 2\\, con coma\\; y punto y coma\\\\ fin',
+      'LOCATION:Sala A',
+      'DTSTART:20261003T100000Z',
+      'END:VEVENT',
+    ].join('\r\n');
+    const p = parseContent(vevent);
+    expect(p).toMatchObject({
+      kind: 'event',
+      title: 'Reunión larga que se pliega en varias líneas',
+      description: 'Línea 1\nLínea 2, con coma; y punto y coma\\ fin',
+      location: 'Sala A',
+    });
+  });
+
+  it('BEGIN:VCALENDAR con VEVENT: el .ics es el texto original', () => {
+    const vcal = 'BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nSUMMARY:Evento\r\nDTSTART:20261003T100000Z\r\nEND:VEVENT\r\nEND:VCALENDAR';
+    const p = parseContent(vcal);
+    expect(p).toMatchObject({ kind: 'event', title: 'Evento', ics: vcal });
+  });
+
+  it('VCALENDAR sin ningún VEVENT cae a texto', () => {
+    const vcal = 'BEGIN:VCALENDAR\r\nVERSION:2.0\r\nEND:VCALENDAR';
+    expect(parseContent(vcal).kind).toBe('text');
+  });
+
+  it('VEVENT suelto (sin VCALENDAR, con LF): el .ics se envuelve en VCALENDAR con CRLF', () => {
+    const vevent = 'BEGIN:VEVENT\nSUMMARY:Evento\nDTSTART:20261003T100000Z\nEND:VEVENT';
+    const p = parseContent(vevent);
+    expect(p.kind).toBe('event');
+    expect(p.kind === 'event' && p.ics).toBe(
+      'BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//Mirilla//ES\r\nBEGIN:VEVENT\r\nSUMMARY:Evento\r\nDTSTART:20261003T100000Z\r\nEND:VEVENT\r\nEND:VCALENDAR',
+    );
+  });
+});
+
+describe('parseContent: OTP (otpauth://)', () => {
+  it('TOTP con el emisor en la etiqueta', () => {
+    const p = parseContent('otpauth://totp/Labelic:ramon@labelic.com?secret=JBSWY3DPEHPK3PXP&issuer=Labelic');
+    expect(p).toEqual({
+      kind: 'otp',
+      type: 'totp',
+      issuer: 'Labelic',
+      account: 'ramon@labelic.com',
+      secret: 'JBSWY3DPEHPK3PXP',
+      algorithm: 'SHA1',
+      digits: 6,
+      period: 30,
+      counter: undefined,
+    });
+  });
+
+  it('el parámetro issuer tiene prioridad sobre el de la etiqueta', () => {
+    const p = parseContent('otpauth://totp/Otro:cuenta?secret=ABC&issuer=ElDeVerdad');
+    expect(p).toMatchObject({ kind: 'otp', issuer: 'ElDeVerdad', account: 'cuenta' });
+  });
+
+  it('sin emisor en la etiqueta, solo la cuenta', () => {
+    const p = parseContent('otpauth://totp/soloCuenta?secret=ABC');
+    expect(p).toMatchObject({ kind: 'otp', issuer: '', account: 'soloCuenta' });
+  });
+
+  it('HOTP con contador', () => {
+    const p = parseContent('otpauth://hotp/Ejemplo:cuenta?secret=ABC&counter=5&digits=8&period=60&algorithm=SHA256');
+    expect(p).toMatchObject({ kind: 'otp', type: 'hotp', digits: 8, period: 60, algorithm: 'SHA256', counter: 5 });
+  });
+
+  it('sin «secret» no es un OTP (pasa como URL)', () => {
+    expect(parseContent('otpauth://totp/Sin:secreto').kind).toBe('url');
+  });
+});
+
+describe('parseContent: criptomonedas', () => {
+  it('bitcoin: con importe, etiqueta y mensaje (BIP 21)', () => {
+    const p = parseContent('bitcoin:1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2?amount=0.001&label=Tienda&message=Pedido%2042');
+    expect(p).toEqual({
+      kind: 'crypto',
+      coin: 'bitcoin',
+      address: '1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2',
+      addressValid: true,
+      amount: '0.001',
+      label: 'Tienda',
+      message: 'Pedido 42',
+    });
+  });
+
+  it('bitcoin: con checksum incorrecto → addressValid false', () => {
+    const p = parseContent('bitcoin:1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN3');
+    expect(p).toMatchObject({ kind: 'crypto', coin: 'bitcoin', addressValid: false });
+  });
+
+  it('bitcoin: con Bech32 en mayúsculas (frecuente en QR) se acepta', () => {
+    const p = parseContent('bitcoin:BC1QW508D6QEJXTDG4Y5R3ZARVARY0C5XW7KV8F3T4');
+    expect(p).toMatchObject({ kind: 'crypto', coin: 'bitcoin', addressValid: true });
+  });
+
+  it('bitcoin: con parámetro lightning= sigue siendo bitcoin', () => {
+    const p = parseContent('bitcoin:1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2?lightning=lnbc1pvjluezsp5');
+    expect(p).toMatchObject({ kind: 'crypto', coin: 'bitcoin' });
+  });
+
+  it('lightning: no decodifica la factura, addressValid null', () => {
+    const p = parseContent('lightning:lnbc1pvjluezsp5zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zygs');
+    expect(p).toEqual({
+      kind: 'crypto',
+      coin: 'lightning',
+      address: 'lnbc1pvjluezsp5zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zygs',
+      addressValid: null,
+      amount: '',
+      label: '',
+      message: '',
+    });
+  });
+
+  it('ethereum: con chainId y value (EIP-681)', () => {
+    const p = parseContent('ethereum:0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed@1?value=1000000000000000000');
+    expect(p).toEqual({
+      kind: 'crypto',
+      coin: 'ethereum',
+      address: '0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed',
+      addressValid: true,
+      amount: '1000000000000000000',
+      label: '',
+      message: '',
+    });
+  });
+
+  it('ethereum: con dirección mal formada → addressValid false (pero se reconoce como crypto)', () => {
+    const p = parseContent('ethereum:0x123@1?value=1');
+    expect(p).toMatchObject({ kind: 'crypto', coin: 'ethereum', address: '0x123', addressValid: false });
   });
 });
 
