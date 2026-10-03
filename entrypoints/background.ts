@@ -1,7 +1,7 @@
 import { browser, type Browser } from 'wxt/browser';
 import { UPDATE_ALARM, UPDATE_MINUTES, updateBlocklist } from '@/lib/blocklist-store';
 import { loadContextData, toAssessContext, withListed } from '@/lib/context';
-import { decodeBlob, type Code, type Rect } from '@/lib/decode';
+import { decodeBlob, withoutPosition, type Code, type Quad, type Rect } from '@/lib/decode';
 import { addToHistory, clearHistory, setHistoryEnabled } from '@/lib/history';
 import { t } from '@/lib/i18n';
 import type { FromPopup, ToBackground, ToContent } from '@/lib/messages';
@@ -125,7 +125,8 @@ async function readImage(tab: Tab, srcUrl: string) {
   if (!(await injectOverlay(tabId))) return;
   send(tabId, { type: 'show-busy' });
   try {
-    let codes = await fetchAndDecode(srcUrl);
+    // Descargada aparte, la posición es de la imagen, no de la página: no se puede marcar.
+    let codes = (await fetchAndDecode(srcUrl))?.map(withoutPosition) ?? null;
     if (codes === null || codes.length === 0) {
       // Sin CORS, SVG, demasiado grande o lento: recorta la imagen de una captura de la pestaña.
       const located = (await browser.tabs.sendMessage(tabId, { type: 'locate-image', srcUrl } satisfies ToContent)) as
@@ -201,7 +202,9 @@ async function scanVisible(tab: Tab) {
  */
 async function captureAndDecode(tab: Tab, rect?: Rect, viewportWidth?: number): Promise<Code[]> {
   const tabId = tab.id!;
-  await browser.tabs.sendMessage(tabId, { type: 'prepare-capture' } satisfies ToContent).catch(() => {});
+  const innerWidth = (await browser.tabs.sendMessage(tabId, { type: 'prepare-capture' } satisfies ToContent).catch(() => undefined)) as
+    | number
+    | undefined;
   // captureVisibleTab captura la pestaña activa de la ventana: si el usuario ha cambiado de pestaña
   // mientras tanto (p. ej. durante una descarga lenta), se capturaría otra página.
   const [active] = await browser.tabs.query({ active: true, windowId: tab.windowId });
@@ -209,11 +212,16 @@ async function captureAndDecode(tab: Tab, rect?: Rect, viewportWidth?: number): 
   const dataUrl = await browser.tabs.captureVisibleTab(tab.windowId!, { format: 'png' });
   send(tabId, { type: 'show-busy' });
   const blob = await (await fetch(dataUrl)).blob();
-  if (!rect || !viewportWidth) return decodeBlob(blob);
-
   // La captura va en píxeles físicos (devicePixelRatio × zoom); se escala con el ancho real.
   const full = await createImageBitmap(blob);
-  const scale = full.width / viewportWidth;
+  const width = viewportWidth || (typeof innerWidth === 'number' && innerWidth > 0 ? innerWidth : 0);
+  const scale = width ? full.width / width : 0;
+  // Posiciones de la captura → píxeles CSS del viewport (sin ancho conocido, no se pueden marcar).
+  const toCss = (codes: Code[]) => codes.map((c) => (c.position && scale ? { ...c, position: c.position.map((p) => ({ x: p.x / scale, y: p.y / scale })) as Quad } : withoutPosition(c)));
+  if (!rect || !viewportWidth) {
+    full.close();
+    return toCss(await decodeBlob(blob));
+  }
   const bounds = { w: full.width, h: full.height };
   full.close();
   const x = clamp(rect.x * scale, 0, bounds.w);
@@ -224,7 +232,7 @@ async function captureAndDecode(tab: Tab, rect?: Rect, viewportWidth?: number): 
     width: clamp(rect.width * scale, 1, bounds.w - x),
     height: clamp(rect.height * scale, 1, bounds.h - y),
   };
-  return decodeBlob(blob, crop);
+  return toCss(await decodeBlob(blob, crop));
 }
 
 async function finish(tab: Tab, codes: Code[]) {
