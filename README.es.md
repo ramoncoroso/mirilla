@@ -10,7 +10,7 @@ avisa si el enlace intenta engañarte (*quishing*). Todo se procesa en tu navega
 
 *Mirilla* es la lente de la puerta: miras quién hay antes de abrir.
 
-Permisos: `activeTab`, `contextMenus`, `scripting` y `storage`. **Ningún permiso de acceso a
+Permisos: `activeTab`, `alarms`, `contextMenus`, `scripting` y `storage`. **Ningún permiso de acceso a
 webs**: la extensión solo toca la pestaña en la que la usas, y solo cuando tú la invocas.
 
 ## Funciones
@@ -22,7 +22,8 @@ webs**: la extensión solo toca la pestaña en la que la usas, y solo cuando tú
 - Resultados por tipo: enlace, WiFi, contacto (vCard/MECARD), email, teléfono, SMS, geo, pago SEPA (EPC).
 - **GS1**: interpreta los identificadores de aplicación (GTIN, SSCC, lote, caducidad y otras fechas, pesos y medidas, precios, GLN...) en GS1 DataMatrix, GS1-128, GS1 QR y DataBar, y las URL GS1 Digital Link. Valida el dígito de control, avisa de productos caducados y muestra el prefijo GS1 de los EAN/UPC.
 - **QR de la página actual**, para descargar en PNG o copiar como imagen.
-- Análisis anti-quishing de URLs: esquemas peligrosos, `usuario@dominio`, punycode, IPs, http, acortadores.
+- Anti-quishing: un veredicto por código (Peligro, Precaución, Sin señales de riesgo, Sitio de confianza) a partir de comprobaciones sin red (marcas suplantadas, dominios que imitan a otros y homógrafos, `usuario@dominio`, enlaces escondidos, instaladores, USSD y tarificación especial, WiFi abierta…), tus sitios de confianza y una lista pública de phishing firmada (Phishing.Database) que se descarga cada 6 h y se compara en local. A petición: antigüedad del dominio por RDAP. Limpia rastreadores y ayuda a denunciar.
+- Mirilla analiza la dirección, no la página: nunca dice «seguro».
 - Historial local (50 lecturas), desactivable.
 
 La interfaz de la extensión está en inglés y en castellano, según el idioma del navegador.
