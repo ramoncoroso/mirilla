@@ -8,7 +8,7 @@ import { stripTrackers } from './data/trackers';
 import { NEW_DOMAIN_DAYS, type DomainAge } from './rdap';
 import { gtinPrefix, ISO_COUNTRY, ISO_CURRENCY, parseGs1Date, type Gs1Element } from './gs1';
 import { t } from './i18n';
-import { parseCode, type EventTime, type Parsed } from './parse';
+import { interpretAddOn, parseCode, type EventTime, type Parsed } from './parse';
 import { revealHidden } from './unicode';
 import { highlightRange, type Finding } from './url-safety';
 import { assess, DEFAULT_CONTEXT, worst, type AssessContext, type Assessment, type LinkCheck, type Verdict } from './verdict';
@@ -232,8 +232,17 @@ function renderBody(p: Parsed, code: Code, as: Assessment, a: RenderActions, cle
       break;
     }
     case 'product':
-      body.append(dl([[t('gs1Gtin'), p.gtin], ...prefixRow(p.gtin)]));
+      body.append(dl([[t('gs1Gtin'), p.gtin], [t('fieldAddOn'), p.addOn ?? ''], ...prefixRow(p.gtin)]));
       if (isCountryPrefix(p.gtin)) body.append(el('p', 'qr-note', t('gs1PrefixNote')));
+      if (p.addOn) {
+        const info = interpretAddOn(p.gtin, p.addOn);
+        if (info?.type === 'price') {
+          const amount = new Intl.NumberFormat(t('lang'), { style: 'currency', currency: info.currency }).format(info.amount);
+          body.append(el('p', 'qr-note', t('addOnPrice', amount)));
+        } else if (info?.type === 'issue') {
+          body.append(el('p', 'qr-note', t('addOnIssue', info.n)));
+        }
+      }
       break;
   }
 

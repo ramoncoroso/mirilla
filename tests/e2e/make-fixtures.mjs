@@ -1,5 +1,5 @@
 // Genera las imágenes de prueba con el codificador de zxing-wasm.
-import { readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { prepareZXingModule, writeBarcode } from 'zxing-wasm/writer';
 
@@ -31,7 +31,54 @@ const codes = {
   'qr-otp.png': ['otpauth://totp/Ejemplo:ana@example.com?secret=JBSWY3DPEHPK3PXP&issuer=Ejemplo', { format: 'QRCode', scale: 5 }],
   'qr-bitcoin.png': ['bitcoin:1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2?amount=0.01&label=Donativo', { format: 'QRCode', scale: 5 }],
   'qr-bitcoin-bad.png': ['bitcoin:1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN3?amount=0.01&label=Donativo', { format: 'QRCode', scale: 5 }],
+
+  // 4.3: añadidos EAN-2/EAN-5. El escritor de zxing acepta "GTIN ADDON" (separados por un espacio) y dibuja
+  // los dos símbolos juntos en una sola imagen. "9780141439518" es un ISBN-13 real (Bookland, prefijo 978).
+  'ean13-addon-price.png': ['9780141439518 51234', { format: 'EAN13', scale: 4 }], // EAN-5 "5" + 1234 → $12.34
+  'ean13-addon-issue.png': ['8412345678905 07', { format: 'EAN13', scale: 4 }], // EAN-2 → número de ejemplar 7
 };
+
+// 4.3: un ejemplar de cada formato que el escritor de zxing sabe crear (los que, al leerlos, se reconocen con
+// identidad propia: UPC-A se lee como EAN-13 y los de la familia DataBar/ITF se agrupan entre sí, así que no se
+// repiten como fixture aparte). Contenido pensado para que, al leerlo, cada uno caiga en el tipo esperado
+// (producto, enlace o texto).
+const formatCodes = {
+  qrcode: ['https://example.org/formats/qr', { format: 'QRCode', scale: 4 }],
+  microqr: ['MIRILLA', { format: 'MicroQRCode', scale: 4 }],
+  rmqr: ['https://example.org/formats/rmqr', { format: 'RMQRCode', scale: 4 }],
+  datamatrix: ['https://example.org/formats/dm', { format: 'DataMatrix', scale: 4 }],
+  aztec: ['https://example.org/formats/az', { format: 'Aztec', scale: 4 }],
+  pdf417: ['https://example.org/formats/pdf417', { format: 'PDF417', scale: 3 }],
+  'ean-13': ['8412345678905', { format: 'EAN13', scale: 4 }],
+  'ean-8': ['12345670', { format: 'EAN8', scale: 4 }],
+  'upc-a': ['036000291452', { format: 'UPCA', scale: 4 }], // se lee como EAN-13 (mismo patrón de barras con un 0 delante)
+  'upc-e': ['04252614', { format: 'UPCE', scale: 4 }],
+  code128: ['MIRILLA-128', { format: 'Code128', scale: 3 }],
+  code39: ['CODE39TEST', { format: 'Code39', scale: 3 }],
+  code93: ['CODE93TEST', { format: 'Code93', scale: 3 }],
+  codabar: ['A1234567890A', { format: 'Codabar', scale: 3 }],
+  itf: ['1234567890', { format: 'ITF', scale: 3 }],
+  'itf-14': ['00012345678905', { format: 'ITF14', scale: 3 }], // se lee como ITF a secas (ver spec de formatos)
+  'databar-omni': ['08412345678905', { format: 'DataBarOmni', scale: 3 }],
+  'databar-stacked': ['08412345678905', { format: 'DataBarStk', scale: 3 }],
+  'databar-limited': ['08412345678905', { format: 'DataBarLtd', scale: 3 }],
+  'databar-expanded': ['(01)08412345678905(17)281200', { format: 'DataBarExp', options: 'gs1', scale: 3 }],
+  'databar-expanded-stacked': ['(01)08412345678905(17)281200', { format: 'DataBarExpStk', options: 'gs1', scale: 3 }],
+  maxicode: ['MIRILLA TEST', { format: 'MaxiCode', scale: 3 }],
+  telepen: ['MIRILLA', { format: 'Telepen', scale: 3 }], // se lee como "Telepen Alpha"
+  dxfilmedge: ['16-0', { format: 'DXFilmEdge', scale: 3 }], // "tipo de película-número de fotograma"
+};
+const formatsDir = new URL('./fixtures/formats/', import.meta.url);
+await mkdir(formatsDir, { recursive: true });
+for (const [name, [text, opts]] of Object.entries(formatCodes)) {
+  const { image, error } = await writeBarcode(text, opts);
+  if (error || !image) {
+    console.log('saltado (el escritor lo rechaza):', name, '—', error);
+    continue;
+  }
+  await writeFile(new URL(`${name}.png`, formatsDir), Buffer.from(await image.arrayBuffer()));
+  console.log('ok', `formats/${name}.png`);
+}
 for (const [name, [text, opts]] of Object.entries(codes)) {
   const { image, error } = await writeBarcode(text, opts);
   if (error || !image) throw new Error(`${name}: ${error}`);

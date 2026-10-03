@@ -11,7 +11,7 @@ type Field = { label: MessageKey; value: string };
 export type Parsed =
   | { kind: 'url'; url: string; /** Si es un GS1 Digital Link, sus datos. */ gs1?: Gs1Element[] }
   | { kind: 'gs1'; elements: Gs1Element[]; rest?: string }
-  | { kind: 'product'; gtin: string }
+  | { kind: 'product'; gtin: string; /** Añadido EAN-2/EAN-5 (número de ejemplar o precio), si lo había y se pudo leer. */ addOn?: string }
   | { kind: 'wifi'; ssid: string; password: string; security: string; hidden: boolean }
   | { kind: 'email'; to: string; subject: string; body: string }
   | { kind: 'tel'; number: string }
@@ -55,7 +55,7 @@ export function parseCode(code: Code): Parsed {
   if (PRODUCT_FORMATS.has(code.format) && /^\d{8,14}$/.test(code.text)) {
     // UPC-E es un UPC-A comprimido: el GTIN (y su prefijo GS1) es el de 12 dígitos.
     const gtin = code.format === 'UPC-E' ? (expandUpcE(code.text) ?? code.text) : code.text;
-    return { kind: 'product', gtin };
+    return { kind: 'product', gtin, ...(code.addOn ? { addOn: code.addOn } : {}) };
   }
   const parsed = parseContent(code.text);
   if (parsed.kind === 'url') {
@@ -128,6 +128,27 @@ export function expandUpcE(upce: string): string | null {
   else if (d6 === '4') body = `${d1}${d2}${d3}${d4}00000${d5}`;
   else body = `${d1}${d2}${d3}${d4}${d5}0000${d6}`;
   return `${ns}${body}${check}`;
+}
+
+/** Lo que dice un añadido EAN-2/EAN-5: el precio recomendado (libros Bookland) o el número de ejemplar (publicaciones). */
+export type AddOnInfo = { type: 'price'; currency: 'USD' | 'GBP'; amount: number } | { type: 'issue'; n: number };
+
+/**
+ * Interpreta un añadido EAN-2/EAN-5 según su longitud y, para el precio, el prefijo del GTIN:
+ * - 2 dígitos: número de ejemplar de una publicación periódica (cualquier GTIN).
+ * - 5 dígitos, solo en libros Bookland (GTIN 978/979): empieza por 5 → precio en USD (resto ÷ 100);
+ *   por 0 → en GBP; por 9 (90000-98999) → uso interno, sin precio que mostrar.
+ * Cualquier otro caso (5 dígitos sin ser Bookland, u otro dígito inicial) no tiene interpretación conocida.
+ */
+export function interpretAddOn(gtin: string, addOn: string): AddOnInfo | null {
+  if (/^\d{2}$/.test(addOn)) return { type: 'issue', n: Number(addOn) };
+  if (/^\d{5}$/.test(addOn) && /^97[89]/.test(gtin)) {
+    const first = addOn[0];
+    const amount = Number(addOn.slice(1)) / 100;
+    if (first === '5') return { type: 'price', currency: 'USD', amount };
+    if (first === '0') return { type: 'price', currency: 'GBP', amount };
+  }
+  return null;
 }
 
 /** Valida un IBAN con el algoritmo ISO 13616 (módulo 97). */
