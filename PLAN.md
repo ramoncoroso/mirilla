@@ -148,10 +148,10 @@ Decidido por el usuario (2026-09-27). Todo en local: nada se consulta a servicio
   - WiFi abierta o con WEP → Precaución;
   - TLD que se confunden con ficheros (`.zip`, `.mov`) → Precaución.
 
-- [ ] **Mis sitios de confianza** (*lógica hecha* en `lookalike.ts`/`verdict.ts`; falta `options.html` y cargar el contexto): el usuario marca sus dominios (su banco, su ayuntamiento, su empresa) en una página de
+- [x] **Mis sitios de confianza** (*hecho 2026-10-03*: `entrypoints/options/`, `lib/context.ts`; el contexto se carga antes de guardar la lectura y viaja al panel en `show-results`): el usuario marca sus dominios (su banco, su ayuntamiento, su empresa) en una página de
   ajustes nueva (`options.html`). Un QR que lleva a uno de ellos → ✅ «Es tu banco (sitio de confianza)»; uno que se le
   parece (imitación, homógrafo, marca en otro dominio) → ⛔ «Imita a tu banco». Más preciso que cualquier lista genérica.
-- [ ] **Familiaridad** (*lógica hecha* en `verdict.ts`; falta cargar los dominios del historial): con el historial de Mirilla (sin pedir el permiso de historial del navegador) y los sitios de
+- [x] **Familiaridad** (*hecho 2026-10-03*: dominios de los enlaces del historial; nota `urlFamiliarityOff` si está desactivado): con el historial de Mirilla (sin pedir el permiso de historial del navegador) y los sitios de
   confianza, señal «Nunca habías ido a este dominio desde Mirilla». Es informativa sola, pero suma en la puntuación
   combinada (el fraude casi siempre llega desde un dominio nuevo para la víctima). Si el historial está desactivado, se
   explica que esta señal no está disponible.

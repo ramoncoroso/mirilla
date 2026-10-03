@@ -1,4 +1,5 @@
 import { browser, type Browser } from 'wxt/browser';
+import { loadContextData, toAssessContext } from '@/lib/context';
 import { decodeBlob, type Code, type Rect } from '@/lib/decode';
 import { addToHistory, clearHistory, setHistoryEnabled } from '@/lib/history';
 import { t } from '@/lib/i18n';
@@ -193,8 +194,11 @@ async function captureAndDecode(tab: Tab, rect?: Rect, viewportWidth?: number): 
 
 async function finish(tab: Tab, codes: Code[]) {
   const tabId = tab.id!;
-  send(tabId, { type: 'show-results', codes });
-  void markTab(tabId, codes.some((c) => isDangerous(c)));
+  // El contexto se carga antes de guardar la lectura: si no, todo enlace sería «ya visto».
+  const ctx = await loadContextData().catch(() => undefined);
+  send(tabId, { type: 'show-results', codes, ctx });
+  const assessCtx = ctx && toAssessContext(ctx);
+  void markTab(tabId, codes.some((c) => isDangerous(c, assessCtx)));
   // Nada de ventanas privadas en el historial. Un fallo al guardarlo no debe tapar los resultados ya mostrados.
   if (!tab.incognito) await addToHistory(codes, tab.url ?? '').catch(console.error);
 }

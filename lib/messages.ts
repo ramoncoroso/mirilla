@@ -1,3 +1,4 @@
+import type { ContextData } from './context';
 import type { Code, Rect } from './decode';
 
 /** Mensajes de la página (overlay) al background. `rect` va en píxeles CSS del viewport. */
@@ -8,7 +9,8 @@ export type ToBackground =
 /** Mensajes del background a la página. */
 export type ToContent =
   | { type: 'start-selection' }
-  | { type: 'show-results'; codes: Code[]; error?: string }
+  /** `ctx`: sitios de confianza y dominios ya vistos, cargados antes de guardar esta lectura en el historial. */
+  | { type: 'show-results'; codes: Code[]; ctx?: ContextData; error?: string }
   | { type: 'show-busy' }
   /** Oculta la interfaz de Mirilla y responde cuando la página ya se ha repintado sin ella. */
   | { type: 'prepare-capture' }

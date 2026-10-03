@@ -11,6 +11,7 @@
 // - copiar nunca usa execCommand (dispararía un evento `copy` que la página puede interceptar).
 
 import { browser } from 'wxt/browser';
+import { toAssessContext } from '@/lib/context';
 import type { Rect } from '@/lib/decode';
 import { t } from '@/lib/i18n';
 import type { ToBackground, ToContent } from '@/lib/messages';
@@ -211,7 +212,7 @@ export default defineUnlistedScript(() => {
       case 'show-results':
         if (msg.error) showPanel(el('p', 'status', msg.error), { focus: true });
         else if (msg.codes.length === 0) showPanel(el('p', 'status', t('noCodes')), { focus: true });
-        else showPanel(renderCodes(msg.codes, actions), { focus: true });
+        else showPanel(renderCodes(msg.codes, actions, msg.ctx && toAssessContext(msg.ctx)), { focus: true });
         break;
       case 'locate-image':
         sendResponse(locateImage(msg.srcUrl));
