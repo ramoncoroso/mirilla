@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { expandUpcE, isValidIban, parseCode, parseContent } from '@/lib/parse';
+import { expandUpcE, interpretAddOn, isValidIban, parseCode, parseContent } from '@/lib/parse';
 
 describe('parseContent', () => {
   it('reconoce URLs y dominios con www', () => {
@@ -271,6 +271,44 @@ describe('parseCode', () => {
 
     it('un EAN-13 es un producto', () => {
     expect(parseCode({ text: '8412345678905', format: 'EAN-13', gs1: false })).toEqual({ kind: 'product', gtin: '8412345678905' });
+  });
+
+  it('el añadido EAN-2/EAN-5 del código pasa al resultado del producto', () => {
+    expect(parseCode({ text: '9781234567897', format: 'EAN-13', gs1: false, addOn: '51234' })).toEqual({
+      kind: 'product',
+      gtin: '9781234567897',
+      addOn: '51234',
+    });
+  });
+});
+
+describe('interpretAddOn', () => {
+  it('EAN-5 que empieza por 5 en un libro (Bookland): precio en USD', () => {
+    expect(interpretAddOn('9781234567897', '51234')).toEqual({ type: 'price', currency: 'USD', amount: 12.34 });
+  });
+
+  it('EAN-5 que empieza por 0 en un libro (Bookland): precio en GBP', () => {
+    expect(interpretAddOn('9781234567897', '01234')).toEqual({ type: 'price', currency: 'GBP', amount: 12.34 });
+  });
+
+  it('EAN-5 interno (90000-98999): sin precio que mostrar', () => {
+    expect(interpretAddOn('9781234567897', '90000')).toBeNull();
+    expect(interpretAddOn('9781234567897', '98999')).toBeNull();
+  });
+
+  it('EAN-5 fuera de un GTIN Bookland (no empieza por 978/979): sin interpretación', () => {
+    expect(interpretAddOn('8412345678905', '51234')).toBeNull();
+  });
+
+  it('EAN-2: número de ejemplar, con cualquier GTIN', () => {
+    expect(interpretAddOn('9781234567897', '12')).toEqual({ type: 'issue', n: 12 });
+    expect(interpretAddOn('8412345678905', '07')).toEqual({ type: 'issue', n: 7 });
+  });
+
+  it('longitudes que no son ni 2 ni 5 dígitos: sin interpretación', () => {
+    expect(interpretAddOn('9781234567897', '123')).toBeNull();
+    expect(interpretAddOn('9781234567897', '1')).toBeNull();
+    expect(interpretAddOn('9781234567897', '')).toBeNull();
   });
 
   it('un código marcado como GS1 se interpreta desde los datos en bruto', () => {

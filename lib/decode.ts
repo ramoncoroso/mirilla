@@ -10,6 +10,8 @@ export interface Code {
   gs1: boolean;
   /** Solo GS1: datos en bruto con separadores GS, que es lo que se interpreta. */
   raw?: string;
+  /** Añadido EAN-2/EAN-5 junto a un EAN/UPC (número de ejemplar o precio), si lo hay y se pudo leer. */
+  addOn?: string;
   /**
    * Dónde estaba en la imagen: las cuatro esquinas (arriba izquierda, arriba derecha, abajo derecha, abajo izquierda),
    * en píxeles de la imagen decodificada (con el recorte ya sumado). No se guarda en el historial.
@@ -67,8 +69,10 @@ export async function decodeImageData(image: ImageData, { fast = false, scale = 
     maxNumberOfSymbols: 32,
     // Plain conserva los separadores GS de los datos GS1; la forma legible la genera toHri().
     textMode: 'Plain',
+    // Lee el EAN-2/EAN-5 junto a un EAN/UPC (precio, número de ejemplar) en vez de ignorarlo.
+    eanAddOnSymbol: 'Read',
   });
-  return dedupe(results.filter((r) => r.isValid).map((r) => toCode(r, scale)));
+  return dedupe(mergeAddOns(results.filter((r) => r.isValid).map((r) => toCode(r, scale))));
 }
 
 /** Decodifica un Blob de imagen (cualquier formato que el navegador sepa pintar), opcionalmente recortado. */
@@ -145,9 +149,25 @@ function toCode(r: ReadResult, scale: number): Code {
   const format = formatLabel(r.format);
   const { topLeft, topRight, bottomRight, bottomLeft } = r.position;
   const position = [topLeft, topRight, bottomRight, bottomLeft].map((p) => ({ x: p.x / scale, y: p.y / scale })) as Quad;
-  if (r.contentType !== 'GS1') return { text: r.text, format, gs1: false, position };
+  // Con eanAddOnSymbol: 'Read', zxing devuelve un segundo resultado con el EAN-2/EAN-5 pegado al final del
+  // texto (y repetido en `extra`); se separa aquí para que el GTIN principal no cambie de longitud.
+  const addOn = parseExtra(r.extra).EanAddOn;
+  const text = addOn && r.text.endsWith(addOn) ? r.text.slice(0, -addOn.length) : r.text;
+  if (r.contentType !== 'GS1') return { text, format, gs1: false, position, ...(addOn ? { addOn } : {}) };
+  // Los códigos GS1 (DataBar, DataMatrix, QR...) no llevan add-on EAN-2/EAN-5: es cosa solo de EAN/UPC.
   const parsed = parseGs1(r.text);
   return { text: toHri(parsed.elements, parsed.rest), format, gs1: true, raw: r.text, position };
+}
+
+/** JSON de `ReadResult.extra` (claves como `EanAddOn`, `UPCE`...); vacío si no hay nada o no se puede interpretar. */
+function parseExtra(raw: string): Record<string, string> {
+  if (!raw) return {};
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? (parsed as Record<string, string>) : {};
+  } catch {
+    return {};
+  }
 }
 
 function shift(q: Quad, dx: number, dy: number): Quad {
@@ -157,6 +177,15 @@ function shift(q: Quad, dx: number, dy: number): Quad {
 /** El código sin su posición: para guardarlo (historial) o mandarlo a donde la posición no significa nada. */
 export function withoutPosition({ position: _position, ...code }: Code): Code {
   return code;
+}
+
+/**
+ * Con el añadido activado, el mismo EAN/UPC con add-on sale dos veces: una sin él (el símbolo principal solo)
+ * y otra con el GTIN y el add-on juntos. Se queda solo la segunda (ya trae `addOn` aparte).
+ */
+function mergeAddOns(codes: Code[]): Code[] {
+  const withAddOn = new Set(codes.filter((c) => c.addOn).map((c) => `${c.format}\u0000${c.text}`));
+  return codes.filter((c) => c.addOn || !withAddOn.has(`${c.format}\u0000${c.text}`));
 }
 
 function dedupe(codes: Code[]): Code[] {
