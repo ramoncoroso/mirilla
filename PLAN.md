@@ -184,21 +184,21 @@ Decidido por el usuario (2026-09-27). Todo en local: nada se consulta a servicio
 **Listas públicas de phishing y malware, comparadas en local** (decidido 2026-09-27)
 Ni consultar cada URL a un servicio (un tercero vería lo que escaneas) ni una lista fija en el paquete (caduca): Mirilla
 descarga periódicamente una lista completa y compara en el equipo, como Safe Browsing o uBlock Origin.
-- [ ] **Lista propia en GitHub**: una GitHub Action (cada pocas horas) descarga **URLhaus** (CC0) y **Phishing.Database**
+- [x] **Lista propia en GitHub** (*hecho 2026-10-03*: `scripts/build-blocklist.ts` + `.github/workflows/blocklist.yml`; solo Phishing.Database; además, de un dominio popular nunca se marca la portada; 3,5 MB): una GitHub Action (cada pocas horas) descarga **URLhaus** (CC0) y **Phishing.Database**
   (MIT), la **filtra contra falsos positivos** (las listas incluyen URLs en servicios legítimos como `docs.google.com` o
   `github.io`: en plataformas compartidas y webs populares de Tranco solo se marca la URL exacta, nunca el dominio
   entero), la compacta (huellas SHA-256 recortadas, ordenadas; pocos MB) y la publica en GitHub Pages con su huella, su
   fecha y los avisos de licencia.
-- [ ] **Firmada**: la lista se firma (Ed25519) y la clave pública va dentro de la extensión; si la firma no cuadra, se
+- [x] **Firmada** (*hecho*; clave privada en el secreto `BLOCKLIST_SIGNING_KEY` y en `~/.config/mirilla/` del equipo del usuario; Chrome mínimo 137 por Ed25519): la lista se firma (Ed25519) y la clave pública va dentro de la extensión; si la firma no cuadra, se
   descarta (ni una cuenta de GitHub comprometida podría colar una lista falsa).
-- [ ] **En la extensión**: descarga cada 6–12 h con `chrome.alarms` (permiso `alarms`, sin aviso al instalar; GitHub Pages
+- [x] **En la extensión** (*hecho*, `lib/blocklist-store.ts`): descarga cada 6–12 h con `chrome.alarms` (permiso `alarms`, sin aviso al instalar; GitHub Pages
   permite la descarga directa, así que no hace falta ningún permiso de acceso a webs), verifica, guarda en local
   (IndexedDB) y busca por búsqueda binaria. Coincidencia → ⛔ «Aparece en una lista pública de phishing/malware
   (URLhaus, actualizada hace 3 h)».
-- [ ] **Activada por defecto** (recomendación; **confirmar con el usuario al implementarlo**), desactivable en los ajustes
+- [x] **Activada por defecto** (*confirmado por el usuario 2026-10-03*; fuente: **solo Phishing.Database**, URLhaus descartado por licencia), desactivable en los ajustes
   y explicada en la primera ejecución: la descarga no revela nada de lo que se escanea.
-- [ ] Complementa a las heurísticas: la lista detecta lo ya denunciado; las heurísticas, lo nuevo.
-- [ ] Pruebas: formato, firma válida e inválida, lista caducada (se sigue usando la última buena con su fecha), filtrado de
+- [x] Complementa a las heurísticas: la lista detecta lo ya denunciado; las heurísticas, lo nuevo.
+- [x] Pruebas (*hechas*: unitarias y 6 en Chromium): formato, firma válida e inválida, lista caducada (se sigue usando la última buena con su fecha), filtrado de
   falsos positivos, rendimiento de la búsqueda.
 
 **«Investigar más»: comprobaciones online solo a petición**
@@ -206,8 +206,9 @@ descarga periódicamente una lista completa y compara en el equipo, como Safe Br
   - **antigüedad del dominio** por RDAP (registro público; ve el dominio, no la URL ni quién eres): un dominio de pocos
     días es una señal muy fuerte de fraude; *hecho 2026-10-03* (`lib/rdap.ts`): directo al registro según la lista de IANA
     (sin rdap.org), sin permisos (CORS); menos de 30 días → aviso y el veredicto sube a Precaución. .es y .eu no tienen RDAP;
-  - **destino de un acortador** (`bit.ly/…`), siguiendo solo la redirección sin abrir la página final (el acortador sabe
-    que alguien lo consulta).
+  - ~~**destino de un acortador**~~ — **descartado** (decidido 2026-10-03): leer la redirección sin visitar la página exige
+    ver la cabecera `Location`, que `fetch` oculta incluso con permiso de host; haría falta `webRequest` + permisos
+    opcionales pedidos desde el popup. El acortador ya sale como Precaución.
 - [ ] Nunca se visita la página para analizarla (avisaría al atacante y le daría la IP del usuario).
 
 **Honestidad sobre los límites**

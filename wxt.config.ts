@@ -36,8 +36,10 @@ export default defineConfig({
     description: '__MSG_extDescription__',
     default_locale: 'en',
     // OffscreenCanvas en el service worker, Intl.DisplayNames, Array.at, ClipboardItem...: Chrome/Edge modernos.
-    minimum_chrome_version: '120',
-    permissions: ['activeTab', 'contextMenus', 'scripting', 'storage'],
+    // 137: Ed25519 en WebCrypto (firma de la lista pública de phishing).
+    minimum_chrome_version: '137',
+    // alarms: descargar la lista pública cada 6 h (no muestra aviso al instalar).
+    permissions: ['activeTab', 'alarms', 'contextMenus', 'scripting', 'storage'],
     ...(process.env.E2E && { host_permissions: ['<all_urls>'] }),
     content_security_policy: {
       extension_pages: "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';",

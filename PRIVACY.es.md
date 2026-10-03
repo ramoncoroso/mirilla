@@ -16,6 +16,8 @@ Mirilla es una extensión de navegador que lee códigos QR y de barras. Está he
   haces clic derecho («Leer código de esta imagen»), directamente del sitio que la sirve y sin
   cookies, para leerla en local. Las demás (ver «Comprobaciones que solo se hacen si las pides»)
   solo ocurren cuando pulsas un botón.
+- La otra descarga automática es la de la **lista pública de phishing** (ver abajo): se descarga
+  entera, igual para todo el mundo, y no lleva nada de lo que escaneas.
 - No tiene analítica, ni anuncios, ni rastreo, ni cuentas.
 - No carga código remoto.
 
@@ -44,10 +46,23 @@ Mirilla es una extensión de navegador que lee códigos QR y de barras. Está he
 | `activeTab` | Leer códigos de la pestaña en la que estás, solo cuando invocas Mirilla (popup, menú contextual o atajo). |
 | `contextMenus` | Añadir «Leer código de esta imagen» y las demás opciones al menú del clic derecho. |
 | `scripting` | Mostrar el selector de área y el panel de resultados en la página actual cuando lo pides. |
-| `storage` | Guardar en tu equipo el historial opcional y su preferencia. |
+| `storage` | Guardar en tu equipo el historial opcional, tus ajustes y tus sitios de confianza. |
+| `alarms` | Descargar la lista pública de phishing cada 6 horas. |
 
 Mirilla no pide acceso a todas las webs. Solo actúa sobre la pestaña actual y solo después
 de que se lo pidas.
+
+## Lista pública de phishing
+
+Si está activada (lo está por defecto; se desactiva en los ajustes), Mirilla descarga cada 6 horas
+una lista de sitios de phishing desde su propia página de GitHub
+(`https://ramoncoroso.github.io/mirilla/blocklist/`). La lista se genera a partir de
+Phishing.Database (licencia MIT), va firmada (Mirilla descarta una lista cuya firma no cuadre) y
+contiene huellas recortadas de dominios y de direcciones, no las direcciones en claro. Mirilla compara
+en tu equipo los enlaces que lees con esa lista: **ni GitHub ni nadie sabe qué escaneas**, solo que
+alguien descargó la lista, como cualquier otra descarga (GitHub ve la dirección IP desde la que se
+pide). La lista se guarda en el almacenamiento local de la extensión (IndexedDB) y se borra al
+desactivarla o al desinstalar Mirilla.
 
 ## Comprobaciones que solo se hacen si las pides
 

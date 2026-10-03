@@ -1,5 +1,6 @@
 import { browser, type Browser } from 'wxt/browser';
-import { loadContextData, toAssessContext } from '@/lib/context';
+import { UPDATE_ALARM, UPDATE_MINUTES, updateBlocklist } from '@/lib/blocklist-store';
+import { loadContextData, toAssessContext, withListed } from '@/lib/context';
 import { decodeBlob, type Code, type Rect } from '@/lib/decode';
 import { addToHistory, clearHistory, setHistoryEnabled } from '@/lib/history';
 import { t } from '@/lib/i18n';
@@ -21,6 +22,17 @@ export default defineBackground(() => {
   // fallaría al arrancar y el popup se quedaría sin respuesta.
   const menus = browser.contextMenus as typeof browser.contextMenus | undefined;
   const commands = browser.commands as typeof browser.commands | undefined;
+
+  // Lista pública de phishing: al instalar o arrancar, y cada 6 h.
+  const scheduleBlocklist = () => {
+    void browser.alarms.create(UPDATE_ALARM, { periodInMinutes: UPDATE_MINUTES, delayInMinutes: UPDATE_MINUTES });
+    void updateBlocklist();
+  };
+  browser.runtime.onInstalled.addListener(scheduleBlocklist);
+  browser.runtime.onStartup.addListener(scheduleBlocklist);
+  browser.alarms.onAlarm.addListener((alarm) => {
+    if (alarm.name === UPDATE_ALARM) void updateBlocklist();
+  });
 
   browser.runtime.onInstalled.addListener(() => {
     if (!menus) return;
@@ -72,6 +84,9 @@ export default defineBackground(() => {
         return true;
       case 'history-set-enabled':
         if (fromExtensionPage(sender)) void setHistoryEnabled(msg.enabled).then(sendResponse, sendResponse);
+        return true;
+      case 'blocklist-update':
+        if (fromExtensionPage(sender)) void updateBlocklist().then(() => sendResponse(true));
         return true;
       case 'history-clear':
         if (fromExtensionPage(sender)) void clearHistory().then(sendResponse, sendResponse);
@@ -215,7 +230,8 @@ async function captureAndDecode(tab: Tab, rect?: Rect, viewportWidth?: number): 
 async function finish(tab: Tab, codes: Code[]) {
   const tabId = tab.id!;
   // El contexto se carga antes de guardar la lectura: si no, todo enlace sería «ya visto».
-  const ctx = await loadContextData().catch(() => undefined);
+  const base = await loadContextData().catch(() => undefined);
+  const ctx = base && (await withListed(base, codes));
   send(tabId, { type: 'show-results', codes, ctx });
   const assessCtx = ctx && toAssessContext(ctx);
   void markTab(tabId, overallVerdict(codes, assessCtx));

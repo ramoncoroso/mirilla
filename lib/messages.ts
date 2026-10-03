@@ -23,4 +23,6 @@ export type FromPopup =
   | { type: 'start-selection'; tabId: number }
   | { type: 'history-add'; codes: Code[]; pageUrl: string }
   | { type: 'history-set-enabled'; enabled: boolean }
-  | { type: 'history-clear' };
+  | { type: 'history-clear' }
+  /** Desde los ajustes, al activar la lista pública: descargarla ya. */
+  | { type: 'blocklist-update' };

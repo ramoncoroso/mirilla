@@ -1,0 +1,5 @@
+{
+  "note": "Clave SOLO para las pruebas E2E (la build E2E confía en ella). No es la de la lista publicada.",
+  "privateKey": "MC4CAQAwBQYDK2VwBCIEIP4Lj6vLCl+Jarxq/VrcZVZBTM66yvokIBE1HskLmTKY",
+  "publicKey": "qGf+29vzAY5qYIMgx3YLB7NUKkslG8C0D2QDtWJT6JY="
+}

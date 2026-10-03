@@ -7,7 +7,9 @@ import { getHistory, isHistoryEnabled } from './history';
 import { extractLinks } from './links';
 import { references } from './lookalike';
 import { analyzeUrl } from './url-safety';
-import type { AssessContext } from './verdict';
+import { listedLinks } from './blocklist-store';
+import type { Code } from './decode';
+import { assess, type AssessContext } from './verdict';
 
 const TRUSTED_KEY = 'trustedSites';
 const CLEAN_KEY = 'cleanLinks';
@@ -20,6 +22,9 @@ export interface ContextData {
   known: string[] | null;
   /** Quitar parámetros de rastreo al abrir o copiar un enlace (activado por defecto). */
   cleanLinks: boolean;
+  /** Enlaces de lo leído que están en la lista pública de phishing, y su fecha (ver withListed). */
+  listed?: string[];
+  listGenerated?: string;
 }
 
 export async function getTrustedSites(): Promise<string[]> {
@@ -80,6 +85,17 @@ export async function loadContextData(): Promise<ContextData> {
   return { trusted, known: enabled ? linkDomains(history.map((h) => h.text)) : null, cleanLinks };
 }
 
+/** Añade al contexto qué enlaces de lo leído están en la lista pública (búsqueda en local, asíncrona). */
+export async function withListed(data: ContextData, codes: readonly Code[]): Promise<ContextData> {
+  const ctx = toAssessContext(data);
+  const hrefs = codes.flatMap((c) => {
+    const a = assess(c, ctx);
+    return [...(a.link ? [a.link] : []), ...a.embedded].filter((l) => l.report.openable).map((l) => l.report.href);
+  });
+  const found = hrefs.length ? await listedLinks(hrefs).catch(() => null) : null;
+  return found ? { ...data, listed: found.listed, listGenerated: found.generated } : data;
+}
+
 export function toAssessContext(data: ContextData): AssessContext {
   return {
     refs: references(data.trusted),
@@ -87,6 +103,7 @@ export function toAssessContext(data: ContextData): AssessContext {
     known: data.known ? new Set(data.known) : null,
     historyOff: data.known === null,
     cleanLinks: data.cleanLinks,
+    ...(data.listed && { listed: new Set(data.listed), listGenerated: data.listGenerated }),
   };
 }
 

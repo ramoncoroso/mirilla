@@ -26,6 +26,9 @@ export interface AssessContext {
   known: ReadonlySet<string> | null;
   /** El usuario desactivó el historial: la señal de familiaridad no está disponible (se explica en una nota). */
   historyOff?: boolean;
+  /** Enlaces (href normalizado) que están en la lista pública de phishing, y la fecha de esa lista. */
+  listed?: ReadonlySet<string>;
+  listGenerated?: string;
   /** Preferencia de la interfaz, no del veredicto: quitar parámetros de rastreo al abrir o copiar. */
   cleanLinks?: boolean;
 }
@@ -88,6 +91,11 @@ function verdictOf(findings: readonly Finding[]): Verdict {
 export function assessUrl(raw: string, ctx: AssessContext = DEFAULT_CONTEXT): LinkCheck {
   const report = analyzeUrl(raw, ctx.refs);
   const findings = [...report.findings];
+  // En la lista pública: hay pruebas (alguien lo denunció y se comprobó). Va primero.
+  if (ctx.listed?.has(report.href)) {
+    const hours = ctx.listGenerated ? Math.max(0, Math.round((Date.now() - Date.parse(ctx.listGenerated)) / 3_600_000)) : 0;
+    findings.unshift({ level: 'danger', message: 'urlListed', args: ['Phishing.Database', String(hours)] });
+  }
   const web = report.openable && !!report.domain;
   const trusted = web && ctx.trusted.includes(report.domain);
 

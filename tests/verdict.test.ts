@@ -120,3 +120,16 @@ describe('señales medidas con Phishing.Database', () => {
     expect(verdict('https://duckdns.org/')).toBe('clear');
   });
 });
+
+describe('lista pública de phishing', () => {
+  it('un enlace de la lista es Peligro, con la fuente y las horas desde que se generó', () => {
+    const generated = new Date(Date.now() - 5 * 3_600_000).toISOString();
+    const ctx: AssessContext = { ...DEFAULT_CONTEXT, listed: new Set(['https://www.labelic.com/precios']), listGenerated: generated };
+    const link = assessUrl('https://www.labelic.com/precios', ctx);
+    expect(link.verdict).toBe('danger');
+    expect(link.findings[0]).toEqual({ level: 'danger', message: 'urlListed', args: ['Phishing.Database', '5'] });
+    // No se suma el «urlCombined»: ya hay una prueba.
+    expect(link.findings.some((f) => f.message === 'urlCombined')).toBe(false);
+    expect(assessUrl('https://www.labelic.com/otra', ctx).verdict).toBe('clear');
+  });
+});

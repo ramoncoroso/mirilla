@@ -148,6 +148,16 @@ export const en = {
   trustedInvalid: 'That is not a website domain. Write it like mybank.com.',
   trustedSaved: '$1 added.',
   linksTitle: 'Links',
+  urlListed: 'It is on a public phishing list ($1, updated $2 h ago). Do not open it or enter any data.',
+  blocklistTitle: 'Public phishing list',
+  settingBlocklist: 'Compare links with a public phishing list (Phishing.Database)',
+  blocklistHelp:
+    'Mirilla downloads the whole list every 6 hours from its GitHub page and compares on your device: the download does not reveal anything you scan.',
+  blocklistStatus: 'List from $1 · $2 entries.',
+  blocklistNone: 'The list has not been downloaded yet.',
+  blocklistNotice:
+    'New: Mirilla compares links with a public phishing list. It downloads the whole list and compares on your device, so nobody learns what you scan.',
+  blocklistNoticeOk: 'Got it',
   settingCleanLinks: 'Remove tracking parameters (utm_*, fbclid…) from links when opening or copying them',
   trackersRemoved: 'Tracking parameters are removed when you open or copy it: $1.',
   investigateMore: 'Investigate further',
@@ -374,6 +384,16 @@ export const es: Record<MessageKey, string> = {
   trustedInvalid: 'Eso no es el dominio de una web. Escríbelo como mibanco.es.',
   trustedSaved: '$1 añadido.',
   linksTitle: 'Enlaces',
+  urlListed: 'Aparece en una lista pública de phishing ($1, actualizada hace $2 h). No lo abras ni escribas ningún dato.',
+  blocklistTitle: 'Lista pública de phishing',
+  settingBlocklist: 'Comparar los enlaces con una lista pública de phishing (Phishing.Database)',
+  blocklistHelp:
+    'Mirilla descarga la lista entera cada 6 horas desde su página de GitHub y compara en tu equipo: la descarga no revela nada de lo que escaneas.',
+  blocklistStatus: 'Lista del $1 · $2 entradas.',
+  blocklistNone: 'La lista aún no se ha descargado.',
+  blocklistNotice:
+    'Novedad: Mirilla compara los enlaces con una lista pública de phishing. Descarga la lista entera y compara en tu equipo, así que nadie sabe qué escaneas.',
+  blocklistNoticeOk: 'Entendido',
   settingCleanLinks: 'Quitar los parámetros de rastreo (utm_*, fbclid…) de los enlaces al abrirlos o copiarlos',
   trackersRemoved: 'Al abrirlo o copiarlo se quitan los parámetros de rastreo: $1.',
   investigateMore: 'Investigar más',
