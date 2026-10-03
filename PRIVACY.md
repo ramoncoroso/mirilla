@@ -16,6 +16,8 @@ Mirilla is a browser extension that reads QR codes and barcodes. It is built so 
   ("Read code from this image"), directly from the site that serves it and without cookies,
   so it can be decoded locally. Any other request (see "Checks that only happen when you ask")
   only happens when you click a button.
+- The other automatic download is the **public phishing list** (see below): it is downloaded
+  whole, the same for everyone, and carries nothing of what you scan.
 - It has no analytics, no ads, no tracking and no accounts.
 - It does not load remote code.
 
@@ -44,10 +46,23 @@ Mirilla is a browser extension that reads QR codes and barcodes. It is built so 
 | `activeTab` | To read codes from the tab you are on, only when you invoke Mirilla (popup, context menu or shortcut). |
 | `contextMenus` | To add "Read code from this image" and the other options to the right-click menu. |
 | `scripting` | To show the area selector and the results panel on the current page when you ask for it. |
-| `storage` | To keep the optional reading history and its setting on your device. |
+| `storage` | To keep the optional reading history, your settings and your trusted sites on your device. |
+| `alarms` | To download the public phishing list every 6 hours. |
 
 Mirilla does not request access to all websites. It only acts on the current tab, and only
 after you ask it to.
+
+## Public phishing list
+
+If it is on (it is by default; it can be turned off in the settings), Mirilla downloads a list of
+phishing sites every 6 hours from its own GitHub page
+(`https://ramoncoroso.github.io/mirilla/blocklist/`). The list is built from Phishing.Database (MIT
+license), it is signed (Mirilla discards a list whose signature does not match) and it contains
+truncated fingerprints of domains and addresses, not the addresses in clear. Mirilla compares the
+links you read with that list on your device: **neither GitHub nor anyone else learns what you
+scan**, only that someone downloaded the list, like any other download (GitHub sees the IP address
+it is requested from). The list is kept in the extension's local storage (IndexedDB) and deleted
+when you turn it off or uninstall Mirilla.
 
 ## Checks that only happen when you ask
 

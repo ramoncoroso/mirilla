@@ -27,6 +27,7 @@
     "@playwright/test": "^1.63.0",
     "@types/node": "^26.6.3",
     "@types/selenium-webdriver": "^4.35.7",
+    "fake-indexeddb": "^6.2.5",
     "geckodriver": "^7.0.0",
     "selenium-webdriver": "^4.49.0",
     "typescript": "^7.0.2",

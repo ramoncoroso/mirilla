@@ -1,6 +1,7 @@
 import { browser } from 'wxt/browser';
-import { loadContext } from '@/lib/context';
+import { loadContextData, toAssessContext, withListed } from '@/lib/context';
 import { domainAge } from '@/lib/rdap';
+import { blocklistNoticeSeen, isBlocklistEnabled, markBlocklistNoticeSeen } from '@/lib/blocklist-store';
 import { decodeBlob, type Code } from '@/lib/decode';
 import { t } from '@/lib/i18n';
 import type { MessageKey } from '@/locales/messages';
@@ -50,7 +51,8 @@ function setStatus(text: string | null) {
 
 /** El contexto (sitios de confianza, dominios ya vistos) se carga antes de guardar la lectura en el historial. */
 async function showCodes(codes: Code[]) {
-  const ctx = await loadContext().catch(() => undefined);
+  const base = await loadContextData().catch(() => undefined);
+  const ctx = base && toAssessContext(await withListed(base, codes));
   clearResults();
   if (codes.length === 0) {
     setStatus(t('noCodesShort'));
@@ -244,6 +246,8 @@ function timeAgo(at: number) {
 
 void (async () => {
   historyEnabled.checked = await isHistoryEnabled();
+  // Primera ejecución: se explica la lista pública (se descarga sola) hasta que el usuario lo cierra.
+  if ((await isBlocklistEnabled()) && !(await blocklistNoticeSeen())) $('notice').hidden = false;
   void renderHistory();
   // Firefox para Android no tiene atajos de teclado.
   const commands = browser.commands as typeof browser.commands | undefined;
@@ -252,6 +256,10 @@ void (async () => {
 })();
 
 
+$('notice-ok').addEventListener('click', () => {
+  $('notice').hidden = true;
+  void markBlocklistNoticeSeen();
+});
 $('settings').addEventListener('click', () => void browser.runtime.openOptionsPage());
 
 window.addEventListener('pagehide', clearResults);
