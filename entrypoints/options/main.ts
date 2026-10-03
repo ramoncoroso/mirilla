@@ -1,4 +1,4 @@
-import { addTrustedSite, getTrustedSites, removeTrustedSite } from '@/lib/context';
+import { addTrustedSite, getCleanLinks, getTrustedSites, removeTrustedSite, setCleanLinks } from '@/lib/context';
 import { t } from '@/lib/i18n';
 import type { MessageKey } from '@/locales/messages';
 import { el, RESULT_CSS, THEME_CSS, THEME_DARK_CSS } from '@/lib/render';
@@ -48,4 +48,8 @@ form.addEventListener('submit', async (e) => {
   void renderSites();
 });
 
+const cleanLinks = $<HTMLInputElement>('clean-links');
+cleanLinks.addEventListener('change', () => void setCleanLinks(cleanLinks.checked));
+
 void renderSites();
+void getCleanLinks().then((clean) => (cleanLinks.checked = clean));

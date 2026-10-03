@@ -22,6 +22,7 @@ const codes = {
   'qr-trusted.png': ['https://www.mibancolocal.es/', { format: 'QRCode', scale: 6 }],
   'qr-imita.png': ['https://mibancoloca1.es/login', { format: 'QRCode', scale: 6 }],
   'qr-http.png': ['http://example.com/', { format: 'QRCode', scale: 6 }],
+  'qr-utm.png': ['https://example.com/promo?utm_source=qr&id=7&fbclid=abc', { format: 'QRCode', scale: 6 }],
   'qr-bidi.png': ['https://evil.example/\u202Emoc.lapyap.www//:sptth', { format: 'QRCode', scale: 6 }],
 };
 for (const [name, [text, opts]] of Object.entries(codes)) {

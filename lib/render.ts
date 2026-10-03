@@ -4,6 +4,7 @@
 
 import type { MessageKey } from '@/locales/messages';
 import type { Code } from './decode';
+import { stripTrackers } from './data/trackers';
 import { gtinPrefix, ISO_COUNTRY, ISO_CURRENCY, parseGs1Date, type Gs1Element } from './gs1';
 import { t } from './i18n';
 import { parseCode, type Parsed } from './parse';
@@ -31,7 +32,7 @@ export function renderCode(code: Code, actions: RenderActions, ctx: AssessContex
   const kind = parsed.kind === 'url' && parsed.gs1 ? 'kindDigitalLink' : KIND_LABEL[parsed.kind];
   head.append(el('span', 'qr-badge', code.format), el('span', 'qr-kind', t(kind)));
   card.append(head, renderVerdict(assessment));
-  card.append(renderBody(parsed, code, assessment, actions));
+  card.append(renderBody(parsed, code, assessment, actions, ctx.cleanLinks !== false));
   return card;
 }
 
@@ -82,7 +83,7 @@ function renderVerdict(as: Assessment): HTMLElement {
   return box;
 }
 
-function renderBody(p: Parsed, code: Code, as: Assessment, a: RenderActions): HTMLElement {
+function renderBody(p: Parsed, code: Code, as: Assessment, a: RenderActions, clean: boolean): HTMLElement {
   const body = el('div', 'qr-body');
   const buttons = el('div', 'qr-actions');
   // Los avisos del contenido (invisibles, teléfono, WiFi, IBAN, GS1...) van arriba, antes de los datos.
@@ -99,8 +100,11 @@ function renderBody(p: Parsed, code: Code, as: Assessment, a: RenderActions): HT
         const shown = as.verdict === 'trusted' ? as.link.findings.filter((f) => f.message !== 'verdictTrustedDetail') : as.link.findings;
         body.append(renderUrl(as.link.report.href, as.link.report.host), ...findingsList(shown));
         if (as.link.report.openable) {
-          buttons.append(openButton(as.link.report.href, dangerous ? 'danger' : as.link.verdict, a));
-          if (dangerous) buttons.append(copyButton(t('copyLink'), as.link.report.href, a));
+          const target = cleanTarget(as.link, clean);
+          if (target.note) body.append(target.note);
+          buttons.append(openButton(target.href, dangerous ? 'danger' : as.link.verdict, a));
+          if (dangerous || target.note) buttons.append(copyButton(t('copyLink'), target.href, a));
+          if (dangerous || as.link.verdict === 'caution') buttons.append(...reportButtons(as.link.report.href, a));
         }
       }
       break;
@@ -171,8 +175,11 @@ function renderBody(p: Parsed, code: Code, as: Assessment, a: RenderActions): HT
       const item = el('div', 'qr-embedded-link');
       item.append(...renderLink(link));
       if (link.report.openable) {
+        const target = cleanTarget(link, clean);
+        if (target.note) item.append(target.note);
         const row = el('div', 'qr-actions');
-        row.append(openButton(link.report.href, link.verdict, a), copyButton(t('copyLink'), link.report.href, a));
+        row.append(openButton(target.href, link.verdict, a), copyButton(t('copyLink'), target.href, a));
+        if (link.verdict === 'danger' || link.verdict === 'caution') row.append(...reportButtons(link.report.href, a));
         item.append(row);
       }
       box.append(item);
@@ -199,6 +206,37 @@ function findingsList(findings: readonly Finding[]): HTMLElement[] {
   const more = el('details', 'qr-more');
   more.append(el('summary', '', t('detailsMore', notes.length)), ...notes.map(finding));
   return [...shown, more];
+}
+
+/** Lo que se abre o copia: el enlace sin parámetros de rastreo (si está activado), con una nota de lo que se quita. */
+function cleanTarget(link: LinkCheck, clean: boolean): { href: string; note?: HTMLElement } {
+  if (!clean) return { href: link.report.href };
+  const { href, removed } = stripTrackers(link.report.href);
+  return removed.length ? { href, note: el('p', 'qr-note qr-trackers', t('trackersRemoved', removed.join(', '))) } : { href };
+}
+
+/** Formulario de denuncia de Google Safe Browsing (no admite la URL ya rellena: se copia para pegarla). */
+const SAFE_BROWSING_REPORT = 'https://safebrowsing.google.com/safebrowsing/report_phish/';
+/** Buzón de incidentes de INCIBE (https://www.incibe.es/ciudadania/ayuda/reporte-de-fraude). */
+const INCIBE_MAIL = 'incidencias@incibe-cert.es';
+
+/** «Denunciar»: solo si el usuario lo pulsa; nada se envía solo. En castellano, también el aviso a INCIBE. */
+function reportButtons(href: string, a: RenderActions): HTMLElement[] {
+  const report = button(t('reportLink'), async () => {
+    try {
+      await a.copy(href);
+      flash(report, t('reportCopied'));
+    } catch {
+      /* sin portapapeles, el formulario se abre igualmente */
+    }
+    a.openUrl(`${SAFE_BROWSING_REPORT}?hl=${encodeURIComponent(t('lang'))}`);
+  });
+  if (t('lang') !== 'es') return [report];
+  const mail = el('a', 'qr-btn', t('reportIncibe')) as HTMLAnchorElement;
+  mail.href = `mailto:${INCIBE_MAIL}?subject=${encodeURIComponent(t('reportMailSubject'))}&body=${encodeURIComponent(`${t('reportMailBody')}\n${href}`)}`;
+  mail.target = '_blank';
+  mail.rel = 'noopener noreferrer';
+  return [report, mail];
 }
 
 /** Ventana para la segunda pulsación de «Abrir de todos modos». */

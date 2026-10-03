@@ -10,6 +10,7 @@ import { analyzeUrl } from './url-safety';
 import type { AssessContext } from './verdict';
 
 const TRUSTED_KEY = 'trustedSites';
+const CLEAN_KEY = 'cleanLinks';
 const MAX_TRUSTED = 100;
 
 /** Contexto serializable: el que se manda a la página en `show-results`. */
@@ -17,6 +18,8 @@ export interface ContextData {
   trusted: string[];
   /** Dominios registrables ya leídos, o null si el historial está desactivado. */
   known: string[] | null;
+  /** Quitar parámetros de rastreo al abrir o copiar un enlace (activado por defecto). */
+  cleanLinks: boolean;
 }
 
 export async function getTrustedSites(): Promise<string[]> {
@@ -34,6 +37,15 @@ export function normalizeSite(input: string): string | null {
   const report = analyzeUrl(/^[a-z][a-z0-9+.-]*:\/\//i.test(s) ? s : `https://${s}`);
   const domain = report.openable ? report.domain : '';
   return /^[^.]+\..*[a-z]/i.test(domain) && !/^[\d.]+$/.test(domain) && !domain.includes(':') ? domain : null;
+}
+
+export async function getCleanLinks(): Promise<boolean> {
+  const { [CLEAN_KEY]: clean } = await browser.storage.local.get(CLEAN_KEY);
+  return clean !== false;
+}
+
+export async function setCleanLinks(clean: boolean): Promise<void> {
+  await browser.storage.local.set({ [CLEAN_KEY]: clean });
 }
 
 /** Añade un sitio de confianza. Devuelve el dominio guardado, o null si no es válido. */
@@ -64,8 +76,8 @@ export function linkDomains(texts: readonly string[]): string[] {
 }
 
 export async function loadContextData(): Promise<ContextData> {
-  const [trusted, enabled, history] = await Promise.all([getTrustedSites(), isHistoryEnabled(), getHistory()]);
-  return { trusted, known: enabled ? linkDomains(history.map((h) => h.text)) : null };
+  const [trusted, enabled, history, cleanLinks] = await Promise.all([getTrustedSites(), isHistoryEnabled(), getHistory(), getCleanLinks()]);
+  return { trusted, known: enabled ? linkDomains(history.map((h) => h.text)) : null, cleanLinks };
 }
 
 export function toAssessContext(data: ContextData): AssessContext {
@@ -74,6 +86,7 @@ export function toAssessContext(data: ContextData): AssessContext {
     trusted: data.trusted,
     known: data.known ? new Set(data.known) : null,
     historyOff: data.known === null,
+    cleanLinks: data.cleanLinks,
   };
 }
 
