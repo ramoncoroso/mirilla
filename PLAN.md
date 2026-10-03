@@ -251,14 +251,14 @@ descarga periódicamente una lista completa y compara en el equipo, como Safe Br
   (`--auto-select-desktop-capture-source`); Firefox con `media.navigator.streams.fake` (comprobar interfaz y permisos).
 - [x] Política de privacidad: cámara y pantalla se procesan en local, fotograma a fotograma, sin guardar nada.
 
-#### 4.2 Marcar en la página dónde está cada código — tamaño M
-- [ ] `Code` gana la posición de zxing (cuatro esquinas), convertida de píxeles de captura a píxeles CSS (misma escala que
+#### 4.2 Marcar en la página dónde está cada código — tamaño M ✅ (2026-10-03)
+- [x] `Code` gana la posición de zxing (cuatro esquinas), convertida de píxeles de captura a píxeles CSS (misma escala que
   el recorte; desplazada por el origen del recorte en «Seleccionar área»). La posición no se guarda en el historial.
-- [ ] El panel numera cada resultado y dibuja en la página un recuadro con ese número sobre cada código (dentro del mismo
+- [x] El panel numera cada resultado y dibuja en la página un recuadro con ese número sobre cada código (dentro del mismo
   shadow DOM blindado); pasar el ratón o el foco por una tarjeta resalta su recuadro y viceversa.
-- [ ] Los recuadros se quitan al cerrar el panel, al hacer scroll o al redimensionar (las posiciones son de la captura).
-- [ ] Recuadro rojo para los códigos peligrosos (`lib/risk.ts`).
-- [ ] Pruebas: posiciones correctas con HiDPI y zoom en Chromium y Firefox (varios códigos, comprobando que cada
+- [x] Los recuadros se quitan al cerrar el panel, al hacer scroll o al redimensionar (las posiciones son de la captura).
+- [x] Recuadro rojo para los códigos peligrosos (`lib/risk.ts`).
+- [x] Pruebas: posiciones correctas con HiDPI y zoom en Chromium y Firefox (varios códigos, comprobando que cada
   recuadro cae sobre su imagen).
 
 #### 4.3 Nuevos tipos de contenido — tamaño M

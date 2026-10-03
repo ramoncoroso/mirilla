@@ -12,9 +12,10 @@ export type ToBackground =
 export type ToContent =
   | { type: 'start-selection' }
   /** `ctx`: sitios de confianza y dominios ya vistos, cargados antes de guardar esta lectura en el historial. */
+  /** Las posiciones de `codes`, si las hay, van en píxeles CSS del viewport en el momento de la captura. */
   | { type: 'show-results'; codes: Code[]; ctx?: ContextData; error?: string }
   | { type: 'show-busy' }
-  /** Oculta la interfaz de Mirilla y responde cuando la página ya se ha repintado sin ella. */
+  /** Oculta la interfaz de Mirilla y responde (con window.innerWidth) cuando la página ya se ha repintado sin ella. */
   | { type: 'prepare-capture' }
   | { type: 'locate-image'; srcUrl: string };
 

@@ -1,5 +1,5 @@
 import { browser } from 'wxt/browser';
-import type { Code } from './decode';
+import { withoutPosition, type Code } from './decode';
 
 export interface HistoryEntry extends Code {
   at: number;
@@ -41,7 +41,8 @@ export function addToHistory(codes: Code[], pageUrl: string): Promise<void> {
     if (codes.length === 0 || !(await isHistoryEnabled())) return;
     const now = Date.now();
     const source = originOf(pageUrl);
-    const fresh = codes.map((c) => ({ ...c, at: now, source }));
+    // La posición en la página no se guarda: no sirve de nada después y dice algo de la página.
+    const fresh = codes.map((c) => ({ ...withoutPosition(c), at: now, source }));
     const old = (await getHistory()).filter((h) => !codes.some((c) => c.text === h.text && c.format === h.format));
     await browser.storage.local.set({ [KEY]: [...fresh, ...old].slice(0, MAX) });
   });

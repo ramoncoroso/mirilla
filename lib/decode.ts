@@ -10,7 +10,18 @@ export interface Code {
   gs1: boolean;
   /** Solo GS1: datos en bruto con separadores GS, que es lo que se interpreta. */
   raw?: string;
+  /**
+   * Dónde estaba en la imagen: las cuatro esquinas (arriba izquierda, arriba derecha, abajo derecha, abajo izquierda),
+   * en píxeles de la imagen decodificada (con el recorte ya sumado). No se guarda en el historial.
+   */
+  position?: Quad;
 }
+
+export interface Point {
+  x: number;
+  y: number;
+}
+export type Quad = [Point, Point, Point, Point];
 
 export interface Rect {
   x: number;
@@ -42,8 +53,11 @@ function ensureModule() {
 const MAX_SIDE = 8192;
 const MAX_PIXELS = 24_000_000;
 
-/** `fast`: para vídeo en directo (cámara, pantalla), donde llega otro fotograma enseguida: sin girar ni invertir. */
-export async function decodeImageData(image: ImageData, { fast = false } = {}): Promise<Code[]> {
+/**
+ * `fast`: para vídeo en directo (cámara, pantalla), donde llega otro fotograma enseguida: sin girar ni invertir.
+ * `scale`: escala con la que se rasterizó la imagen; las posiciones se devuelven en píxeles de la imagen original.
+ */
+export async function decodeImageData(image: ImageData, { fast = false, scale = 1 } = {}): Promise<Code[]> {
   await ensureModule();
   const results = await readBarcodes(image, {
     tryHarder: true,
@@ -54,7 +68,7 @@ export async function decodeImageData(image: ImageData, { fast = false } = {}): 
     // Plain conserva los separadores GS de los datos GS1; la forma legible la genera toHri().
     textMode: 'Plain',
   });
-  return dedupe(results.filter((r) => r.isValid).map(toCode));
+  return dedupe(results.filter((r) => r.isValid).map((r) => toCode(r, scale)));
 }
 
 /** Decodifica un Blob de imagen (cualquier formato que el navegador sepa pintar), opcionalmente recortado. */
@@ -71,7 +85,9 @@ export async function decodeBlob(blob: Blob, crop?: Rect): Promise<Code[]> {
     bitmap = await bitmapViaImageElement(blob);
   }
   try {
-    return await decodeBitmap(bitmap);
+    const codes = await decodeBitmap(bitmap);
+    // Las posiciones, relativas a la imagen completa (no al recorte).
+    return crop ? codes.map((c) => (c.position ? { ...c, position: shift(c.position, crop.x, crop.y) } : c)) : codes;
   } finally {
     bitmap.close();
   }
@@ -91,14 +107,14 @@ async function bitmapViaImageElement(blob: Blob): Promise<ImageBitmap> {
 
 async function decodeBitmap(bitmap: ImageBitmap): Promise<Code[]> {
   const fit = maxScale(bitmap);
-  const codes = await decodeImageData(rasterize(bitmap, Math.min(1, fit)));
+  const codes = await decodeImageData(rasterize(bitmap, Math.min(1, fit)), { scale: Math.min(1, fit) });
   if (codes.length > 0) return codes;
   // Códigos muy pequeños (favicons, miniaturas): reintenta ampliando, sin pasar de los límites.
   const minSide = Math.min(bitmap.width, bitmap.height);
   const up = Math.min(4, Math.ceil(400 / minSide), fit);
   if (minSide < 400 && up > 1) {
     try {
-      return await decodeImageData(rasterize(bitmap, up));
+      return await decodeImageData(rasterize(bitmap, up), { scale: up });
     } catch {
       return codes; // si el reintento falla, cuenta como "no encontrado", no como error de lectura
     }
@@ -125,11 +141,22 @@ function rasterize(bitmap: ImageBitmap, scale: number): ImageData {
   return ctx.getImageData(0, 0, w, h);
 }
 
-function toCode(r: ReadResult): Code {
+function toCode(r: ReadResult, scale: number): Code {
   const format = formatLabel(r.format);
-  if (r.contentType !== 'GS1') return { text: r.text, format, gs1: false };
+  const { topLeft, topRight, bottomRight, bottomLeft } = r.position;
+  const position = [topLeft, topRight, bottomRight, bottomLeft].map((p) => ({ x: p.x / scale, y: p.y / scale })) as Quad;
+  if (r.contentType !== 'GS1') return { text: r.text, format, gs1: false, position };
   const parsed = parseGs1(r.text);
-  return { text: toHri(parsed.elements, parsed.rest), format, gs1: true, raw: r.text };
+  return { text: toHri(parsed.elements, parsed.rest), format, gs1: true, raw: r.text, position };
+}
+
+function shift(q: Quad, dx: number, dy: number): Quad {
+  return q.map((p) => ({ x: p.x + dx, y: p.y + dy })) as Quad;
+}
+
+/** El código sin su posición: para guardarlo (historial) o mandarlo a donde la posición no significa nada. */
+export function withoutPosition({ position: _position, ...code }: Code): Code {
+  return code;
 }
 
 function dedupe(codes: Code[]): Code[] {

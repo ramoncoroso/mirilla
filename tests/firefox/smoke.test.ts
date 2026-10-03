@@ -89,6 +89,57 @@ async function waitPanel(driver: WebDriver, css: string, ms = 8000): Promise<str
   return text!;
 }
 
+interface MarkExpectation {
+  /** Nombre de fichero de la imagen (tal y como aparece al final de su src). */
+  file: string;
+  /** Texto que solo aparece en la tarjeta de esta imagen. */
+  needle: string;
+  danger?: boolean;
+}
+
+/**
+ * Para cada imagen esperada, comprueba que su tarjeta tiene un recuadro (`.mark`) que contiene el centro
+ * de la imagen y no es mucho mayor que ella; y que el veredicto peligroso dibuja `mark-danger`.
+ */
+async function checkMarksOverlayImages(driver: WebDriver, images: MarkExpectation[]) {
+  await driver.wait(
+    async () =>
+      (await driver.executeScript<number>(`return document.querySelector('mirilla-ui')?.shadowRoot?.querySelectorAll('.mark').length ?? 0`)) === images.length,
+    8000,
+  );
+  const results = await driver.executeScript<
+    { file: string; found: boolean; contains: boolean; danger: boolean; markW: number; markH: number; imgW: number; imgH: number }[]
+  >(
+    `const [images] = arguments;
+     const root = document.querySelector('mirilla-ui').shadowRoot;
+     const cards = Array.from(root.querySelectorAll('.qr-card'));
+     return images.map((spec) => {
+       const card = cards.find((c) => c.textContent.includes(spec.needle));
+       if (!card) return { file: spec.file, found: false };
+       const n = card.querySelector('.qr-num').textContent;
+       const mark = root.querySelector('.mark[data-n="' + n + '"]');
+       const markRect = mark.getBoundingClientRect();
+       const img = Array.from(document.images).find((i) => i.src.endsWith(spec.file));
+       const imgRect = img.getBoundingClientRect();
+       const cx = imgRect.left + imgRect.width / 2;
+       const cy = imgRect.top + imgRect.height / 2;
+       const contains = cx >= markRect.left && cx <= markRect.right && cy >= markRect.top && cy <= markRect.bottom;
+       return {
+         file: spec.file, found: true, contains, danger: mark.classList.contains('mark-danger'),
+         markW: markRect.width, markH: markRect.height, imgW: imgRect.width, imgH: imgRect.height,
+       };
+     });`,
+    images,
+  );
+  for (const [i, r] of results.entries()) {
+    const spec = images[i]!;
+    assert.ok(r.found, `no se encontró la tarjeta de ${spec.file}`);
+    assert.ok(r.contains, `el recuadro de ${spec.file} no contiene el centro de la imagen: ${JSON.stringify(r)}`);
+    assert.ok(r.markW < r.imgW * 1.5 && r.markH < r.imgH * 1.5, `el recuadro de ${spec.file} es demasiado grande: ${JSON.stringify(r)}`);
+    assert.equal(r.danger, !!spec.danger, `recuadro de ${spec.file}: danger esperado ${!!spec.danger}, fue ${r.danger}`);
+  }
+}
+
 const history = (driver: WebDriver) => bridge<string[]>(driver, { op: 'history' });
 
 async function waitHistory(driver: WebDriver, expected: (h: string[]) => boolean, ms = 8000) {
@@ -242,6 +293,26 @@ describe('Firefox', () => {
     assert.ok(h.includes('8412345678905'));
   });
 
+  test('buscar en lo visible: dibuja un recuadro sobre cada código, con el peligroso marcado', async () => {
+    const tabId = await openTab(
+      driver,
+      page(
+        '/marcar',
+        `<img src="/fixtures/qr-safe.png" style="position:absolute;left:40px;top:40px">
+         <img src="/fixtures/qr-url.png" style="position:absolute;left:420px;top:60px">`,
+      ),
+    );
+    await callMenu(driver, 'scanVisible', tabId);
+    await driver.wait(
+      async () => (await driver.executeScript<number>(`return document.querySelector('mirilla-ui')?.shadowRoot?.querySelectorAll('.qr-card').length ?? 0`)) === 2,
+      8000,
+    );
+    await checkMarksOverlayImages(driver, [
+      { file: 'qr-safe.png', needle: 'example.com' },
+      { file: 'qr-url.png', needle: 'evil.example', danger: true },
+    ]);
+  });
+
   test('seguridad: una hoja de estilos hostil y un Escape falso no ocultan el aviso de peligro', async () => {
     const tabId = await openTab(
       driver,
@@ -312,5 +383,6 @@ describe('Firefox HiDPI (devPixelsPerPx 2)', () => {
     assert.equal(await driver.executeScript('return devicePixelRatio'), 2);
     await selectElement(driver, tabId, '#qr');
     await waitHistory(driver, (h) => h[0] === 'https://example.com/');
+    await checkMarksOverlayImages(driver, [{ file: 'qr-safe.png', needle: 'example.com' }]);
   });
 });

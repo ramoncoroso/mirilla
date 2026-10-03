@@ -13,7 +13,7 @@
 import { browser } from 'wxt/browser';
 import { toAssessContext } from '@/lib/context';
 import type { DomainAge } from '@/lib/rdap';
-import type { Rect } from '@/lib/decode';
+import type { Code, Rect } from '@/lib/decode';
 import { t } from '@/lib/i18n';
 import type { ToBackground, ToContent } from '@/lib/messages';
 import { copyText, el, renderCodes, RESULT_CSS, THEME_CSS, THEME_DARK_CSS } from '@/lib/render';
@@ -87,7 +87,66 @@ export default defineUnlistedScript(() => {
     }
   }
 
+  // ---- Recuadros sobre los códigos (4.2) ----
+  // Las posiciones son de la captura: en cuanto la página se mueve dejan de valer, y se quitan.
+
+  let marks: HTMLElement | null = null;
+
+  function removeMarks() {
+    marks?.remove();
+    marks = null;
+    window.removeEventListener('scroll', removeMarks, true);
+    window.removeEventListener('resize', removeMarks);
+  }
+
+  /** Numera las tarjetas y dibuja un recuadro con el mismo número sobre cada código; resaltan el uno al otro. */
+  function drawMarks(codes: Code[], list: HTMLElement) {
+    removeMarks();
+    const cards = Array.from(list.querySelectorAll<HTMLElement>(':scope > .qr-card'));
+    if (!codes.some((c) => c.position)) return;
+    marks = el('div', 'marks');
+    codes.forEach((code, i) => {
+      const card = cards[i];
+      if (!card) return;
+      const n = String(i + 1);
+      card.querySelector('.qr-head')?.prepend(el('span', 'qr-num', n));
+      if (!code.position) return;
+      const xs = code.position.map((p) => p.x);
+      const ys = code.position.map((p) => p.y);
+      const pad = 4;
+      const mark = el('div', `mark${card.dataset.verdict === 'danger' ? ' mark-danger' : ''}`);
+      mark.dataset.n = n;
+      Object.assign(mark.style, {
+        left: `${Math.min(...xs) - pad}px`,
+        top: `${Math.min(...ys) - pad}px`,
+        width: `${Math.max(...xs) - Math.min(...xs) + 2 * pad}px`,
+        height: `${Math.max(...ys) - Math.min(...ys) + 2 * pad}px`,
+      });
+      const label = el('span', 'mark-label', n);
+      mark.append(label);
+      const hot = (on: boolean) => {
+        mark.classList.toggle('hot', on);
+        card.classList.toggle('hot', on);
+      };
+      for (const [type, on] of [['mouseenter', true], ['mouseleave', false], ['focusin', true], ['focusout', false]] as const) {
+        card.addEventListener(type, () => hot(on));
+      }
+      // Y al revés: pasar por el número del recuadro resalta (y muestra) su tarjeta.
+      label.addEventListener('mouseenter', () => {
+        hot(true);
+        card.scrollIntoView({ block: 'nearest' });
+      });
+      label.addEventListener('mouseleave', () => hot(false));
+      marks!.append(mark);
+    });
+    // Debajo del panel: un recuadro nunca tapa los resultados.
+    shadow.insertBefore(marks, panel);
+    window.addEventListener('scroll', removeMarks, { capture: true, passive: true });
+    window.addEventListener('resize', removeMarks, { passive: true });
+  }
+
   function hidePanel() {
+    removeMarks();
     const hadFocus = !!panel && shadow.activeElement !== null;
     panel?.remove();
     panel = null;
@@ -214,14 +273,19 @@ export default defineUnlistedScript(() => {
       case 'show-results':
         if (msg.error) showPanel(el('p', 'status', msg.error), { focus: true });
         else if (msg.codes.length === 0) showPanel(el('p', 'status', t('noCodes')), { focus: true });
-        else showPanel(renderCodes(msg.codes, actions, msg.ctx && toAssessContext(msg.ctx)), { focus: true });
+        else {
+          const list = renderCodes(msg.codes, actions, msg.ctx && toAssessContext(msg.ctx));
+          showPanel(list, { focus: true });
+          drawMarks(msg.codes, list);
+        }
         break;
       case 'locate-image':
         sendResponse(locateImage(msg.srcUrl));
         return true;
       case 'prepare-capture':
         hidePanel();
-        void repaint().then(() => sendResponse(true));
+        // Responde con el ancho del viewport: el background lo usa para pasar las posiciones a píxeles CSS.
+        void repaint().then(() => sendResponse(window.innerWidth));
         return true;
     }
     return undefined;
@@ -312,5 +376,22 @@ const CSS = `
   position: fixed; top: 16px; left: 50%; transform: translateX(-50%); padding: 8px 14px; border-radius: 8px;
   background: rgba(32,33,36,.92); color: #fff; font: 13px/1.3 system-ui, sans-serif; pointer-events: none;
 }
+/* Recuadros: no capturan el ratón (la página sigue usable), salvo el número. */
+.marks { position: fixed; inset: 0; pointer-events: none; ${THEME_CSS} }
+.mark { position: fixed; border: 3px solid #1a73e8; border-radius: 6px; box-shadow: 0 0 0 2px rgba(255,255,255,.85); }
+.mark-danger { border-color: #d93025; }
+.mark.hot { border-width: 5px; background: rgba(26,115,232,.12); }
+.mark-danger.hot { background: rgba(217,48,37,.14); }
+.mark-label {
+  pointer-events: auto; position: absolute; top: -12px; left: -12px; min-width: 24px; height: 24px; padding: 0 6px;
+  border-radius: 12px; background: #1a73e8; color: #fff; font: 700 13px/24px system-ui, sans-serif; text-align: center; cursor: default;
+}
+.mark-danger .mark-label { background: #d93025; }
+.qr-num {
+  min-width: 20px; height: 20px; padding: 0 5px; border-radius: 10px; background: #1a73e8; color: #fff;
+  font: 700 12px/20px system-ui, sans-serif; text-align: center;
+}
+.qr-card[data-verdict="danger"] .qr-num { background: #d93025; }
+.qr-card.hot { outline: 2px solid var(--qr-accent); outline-offset: 1px; }
 ${RESULT_CSS}
 `;
