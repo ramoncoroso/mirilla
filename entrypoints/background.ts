@@ -4,7 +4,8 @@ import { decodeBlob, type Code, type Rect } from '@/lib/decode';
 import { addToHistory, clearHistory, setHistoryEnabled } from '@/lib/history';
 import { t } from '@/lib/i18n';
 import type { FromPopup, ToBackground, ToContent } from '@/lib/messages';
-import { isDangerous } from '@/lib/risk';
+import { overallVerdict } from '@/lib/risk';
+import type { Verdict } from '@/lib/verdict';
 import { analyzeUrl } from '@/lib/url-safety';
 
 type Tab = Browser.tabs.Tab;
@@ -198,16 +199,25 @@ async function finish(tab: Tab, codes: Code[]) {
   const ctx = await loadContextData().catch(() => undefined);
   send(tabId, { type: 'show-results', codes, ctx });
   const assessCtx = ctx && toAssessContext(ctx);
-  void markTab(tabId, codes.some((c) => isDangerous(c, assessCtx)));
+  void markTab(tabId, overallVerdict(codes, assessCtx));
   // Nada de ventanas privadas en el historial. Un fallo al guardarlo no debe tapar los resultados ya mostrados.
   if (!tab.incognito) await addToHistory(codes, tab.url ?? '').catch(console.error);
 }
 
-/** "!" rojo en el icono de la extensión para esa pestaña: la página puede tapar su panel, pero no esto. */
-async function markTab(tabId: number, danger: boolean) {
+/** Colores del «!» en el icono: rojo para Peligro, amarillo (con texto oscuro, por contraste) para Precaución. */
+const BADGE: Partial<Record<Verdict, { bg: string; fg: string }>> = {
+  danger: { bg: '#d93025', fg: '#ffffff' },
+  caution: { bg: '#f9ab00', fg: '#202124' },
+};
+
+/** «!» en el icono de la extensión para esa pestaña: la página puede tapar su panel, pero no esto. */
+async function markTab(tabId: number, verdict: Verdict) {
+  const badge = BADGE[verdict];
   try {
-    await browser.action.setBadgeText({ tabId, text: danger ? '!' : '' });
-    if (danger) await browser.action.setBadgeBackgroundColor({ tabId, color: '#d93025' });
+    await browser.action.setBadgeText({ tabId, text: badge ? '!' : '' });
+    if (!badge) return;
+    await browser.action.setBadgeBackgroundColor({ tabId, color: badge.bg });
+    await browser.action.setBadgeTextColor?.({ tabId, color: badge.fg });
   } catch {
     /* la pestaña se ha cerrado */
   }

@@ -70,7 +70,7 @@ test('popup: familiaridad con el historial, y nota si está desactivado', async 
 
   // Primera vez: el contexto se carga antes de guardar la lectura.
   await popup.setInputFiles('#file', fixture('qr-safe.png'));
-  await expect(firstVisit).toBeVisible();
+  await expect(firstVisit).toBeAttached(); // nota plegada en «More details»
   await expect.poll(() => history(sw)).toEqual(['https://example.com/']);
 
   // Segunda vez: ya conocido.
@@ -83,7 +83,7 @@ test('popup: familiaridad con el historial, y nota si está desactivado', async 
   await popup.locator('summary').click();
   await popup.locator('#history-enabled').uncheck();
   await popup.setInputFiles('#file', fixture('qr-safe.png'));
-  await expect(popup.getByText('With history turned off, Mirilla cannot tell')).toBeVisible();
+  await expect(popup.getByText('With history turned off, Mirilla cannot tell')).toBeAttached();
   await expect(popup.locator('.qr-card')).toHaveAttribute('data-verdict', 'clear');
 });
 
