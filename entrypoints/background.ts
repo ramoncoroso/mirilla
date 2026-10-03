@@ -82,10 +82,21 @@ export default defineBackground(() => {
 
   if (__E2E__) {
     // Solo en la build de tests: la automatización no puede pulsar menús contextuales ni atajos del navegador.
-    Object.assign(globalThis, { __mirillaTest: { readImage, startSelection, scanVisible } });
-    // geckodriver no puede navegar a moz-extension://: la extensión abre su propia página para las pruebas.
+    const api = { readImage, startSelection, scanVisible };
+    Object.assign(globalThis, { __mirillaTest: api });
+    // Firefox: geckodriver no puede tocar páginas moz-extension://; las órdenes llegan desde la página de pruebas
+    // a través del script de contenido e2e-relay (solo en esta build).
     if (import.meta.env.FIREFOX) {
-      browser.runtime.onInstalled.addListener(() => void browser.tabs.create({ url: browser.runtime.getURL('/popup.html') }));
+      browser.runtime.onMessage.addListener((msg: { type?: string; cmd?: unknown }, sender: Sender, sendResponse: (r: unknown) => void) => {
+        if (msg?.type !== 'e2e' || sender.id !== browser.runtime.id) return undefined;
+        void import('@/lib/e2e-bridge').then(({ run }) =>
+          run(msg.cmd as never, api).then(
+            (value) => sendResponse({ ok: true, value: value ?? null }),
+            (err: unknown) => sendResponse({ ok: false, error: String(err) }),
+          ),
+        );
+        return true;
+      });
     }
   }
 });

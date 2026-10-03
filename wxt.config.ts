@@ -16,6 +16,10 @@ export default defineConfig({
   // __E2E__ se sustituye al compilar: en la build normal el código de pruebas desaparece.
   vite: () => ({ define: { __E2E__: JSON.stringify(!!process.env.E2E) } }),
   hooks: {
+    // El relé de órdenes de las pruebas de Firefox (entrypoints/e2e-relay.content.ts) solo va en la build E2E.
+    'entrypoints:resolved': (_wxt, entrypoints) => {
+      if (!process.env.E2E) entrypoints.splice(0, entrypoints.length, ...entrypoints.filter((e) => e.name !== 'e2e-relay'));
+    },
     // El .wasm se copia tal cual al paquete; si se importa con ?url, Vite lo mete en base64 dentro del background.
     'build:publicAssets': (_wxt, files) => {
       files.push({ absoluteSrc: require.resolve('zxing-wasm/reader/zxing_reader.wasm'), relativeDest: 'zxing_reader.wasm' });

@@ -251,8 +251,6 @@ void (async () => {
   if (shortcut) $('shortcut').textContent = shortcut;
 })();
 
-// Solo Firefox lo necesita (geckodriver no puede ejecutar scripts en páginas de extensión).
-if (__E2E__ && import.meta.env.FIREFOX) void import('@/lib/e2e-bridge').then((m) => m.mount());
 
 $('settings').addEventListener('click', () => void browser.runtime.openOptionsPage());
 
