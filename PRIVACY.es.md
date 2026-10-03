@@ -2,7 +2,7 @@
 
 [English](PRIVACY.md) · **Español**
 
-_Última actualización: 3 de octubre de 2026 (rev. 3)_
+_Última actualización: 3 de octubre de 2026 (rev. 4)_
 
 Mirilla es una extensión de navegador que lee códigos QR y de barras. Está hecha para que
 **ningún dato salga de tu equipo**.
@@ -52,13 +52,17 @@ Mirilla es una extensión de navegador que lee códigos QR y de barras. Está he
 Mirilla no pide acceso a todas las webs. Solo actúa sobre la pestaña actual y solo después
 de que se lo pidas.
 
-## Cámara y pantalla
+## Cámara, pantalla y ficheros PDF
 
 Si eliges «Escanear con la cámara» o «Escanear la pantalla u otra ventana», tu navegador te pide
 permiso en ese momento (Mirilla no tiene permisos de cámara ni de pantalla en su manifiesto). La imagen
 se lee en tu equipo, fotograma a fotograma: no se graba, no se guarda ningún fotograma y no se envía a
 ningún sitio. La cámara o la captura se apagan en cuanto se lee un código, al pulsar «Parar» o al
 cerrar la pestaña (la cámara, también al ocultarla).
+
+Un PDF que abres o arrastras en el popup o en la página de escaneo se lee en tu equipo con pdf.js,
+incluido en la extensión: no se sube a ningún sitio ni se guarda, el JavaScript que pueda llevar dentro
+nunca se ejecuta, y solo los códigos encontrados pasan al historial, como cualquier otra lectura.
 
 ## Lista pública de phishing
 

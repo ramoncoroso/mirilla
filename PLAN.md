@@ -231,7 +231,7 @@ descarga periódicamente una lista completa y compara en el equipo, como Safe Br
 - [x] Descartado: OpenPhish (sus condiciones prohíben usarlo para desarrollar productos o para detección).
 - [x] Sin listas negras fijas dentro del paquete (caducan en días y engordan el paquete): ver «Listas públicas» abajo.
 
-#### 4.1 Página de escaneo: cámara, pantalla y PDF — tamaño L
+#### 4.1 Página de escaneo: cámara, pantalla y PDF — tamaño L ✅ (2026-10-03)
 - [x] Nueva página de la extensión `scan.html` (*hecho 2026-10-03*, `entrypoints/scan/`), abierta en **su propia pestaña** desde el popup («Escanear con la cámara»,
   «Escanear pantalla u otra ventana»). No en el popup: Firefox lo cierra al salir el aviso de permisos y Chrome al abrir
   el selector de pantalla.
@@ -239,7 +239,7 @@ descarga periódicamente una lista completa y compara en el equipo, como Safe Br
   canvas → `decodeImageData`), se para al leer y al ocultar la pestaña (`visibilitychange`); nunca se graba ni se guarda
   un fotograma.
 - [x] Pantalla: `getDisplayMedia()`; el mismo bucle de lectura; se deja de compartir al leer o al cerrar.
-- [ ] **PDF** (el vector número uno del quishing: un PDF adjunto con un QR dentro, que los filtros de correo no suelen
+- [x] **PDF** (*hecho 2026-10-03*: `lib/pdf.ts`, popup y página de escaneo; pdf.js 6 sin eval; sin quickjs; límites 50 MB y 50 páginas) (el vector número uno del quishing: un PDF adjunto con un QR dentro, que los filtros de correo no suelen
   leer y en cuyo visor no se puede inyectar): abrir o arrastrar un PDF en la página de escaneo (también desde el popup) y
   analizar todas sus páginas en local con **pdf.js** incluido en el paquete (Apache-2.0; sin código remoto; revisar que
   su build cumple la CSP de MV3). Resultados por página; los peligrosos arriba. Límites de páginas y de tamaño.

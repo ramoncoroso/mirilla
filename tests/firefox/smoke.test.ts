@@ -18,7 +18,7 @@ import { Builder, By, Origin, until, type WebDriver } from 'selenium-webdriver';
 import firefox from 'selenium-webdriver/firefox.js';
 
 const fixture = (name: string) => path.resolve('tests/e2e/fixtures', name);
-const MIME: Record<string, string> = { '.png': 'image/png', '.svg': 'image/svg+xml' };
+const MIME: Record<string, string> = { '.png': 'image/png', '.svg': 'image/svg+xml', '.pdf': 'application/pdf' };
 
 // ---- Web de pruebas ----
 
@@ -199,6 +199,13 @@ describe('Firefox', () => {
     await callMenu(driver, 'readImage', tabId, `${origin}/fixtures/qr-imita.png`);
     assert.equal(await waitPanel(driver, '.qr-verdict-danger .qr-verdict-label'), 'Danger');
     assert.match((await panelText(driver, '.qr-danger'))!, /one of your trusted sites/);
+  });
+
+  test('PDF: pdf.js lee las páginas con la CSP de la extensión', async () => {
+    assert.deepEqual(await bridge(driver, { op: 'pdf', url: `${origin}/fixtures/quishing.pdf` }), [
+      [2, ['https://www.paypal.com@evil.example/login']],
+      [3, ['https://example.com/']],
+    ]);
   });
 
   test('seleccionar área: inyecta, captura, recorta y decodifica en el background', async () => {
