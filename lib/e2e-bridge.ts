@@ -9,6 +9,9 @@ export type Command =
   | { op: 'clear' }
   | { op: 'history' }
   | { op: 'setStorage'; items: Record<string, unknown> }
+  | { op: 'getStorage'; key: string }
+  | { op: 'openScan'; mode: string }
+  | { op: 'closeTab'; tabId: number }
   | { op: 'tabIdByUrl'; url: string }
   | { op: 'activate'; tabId: number }
   | { op: 'setZoom'; tabId: number; zoom: number }
@@ -32,6 +35,12 @@ export async function run(cmd: Command, api: TestApi): Promise<unknown> {
     }
     case 'setStorage':
       return browser.storage.local.set(cmd.items);
+    case 'getStorage':
+      return (await browser.storage.local.get(cmd.key))[cmd.key] ?? null;
+    case 'closeTab':
+      return browser.tabs.remove(cmd.tabId);
+    case 'openScan':
+      return (await browser.tabs.create({ url: browser.runtime.getURL(`/scan.html?mode=${cmd.mode}`) })).id;
     case 'tabIdByUrl':
       // Los patrones de tabs.query no admiten puertos: se compara la URL exacta.
       return (await browser.tabs.query({})).find((t) => t.url === cmd.url)?.id;

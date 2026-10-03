@@ -274,6 +274,25 @@ describe('Firefox', () => {
   });
 });
 
+describe('Firefox: página de escaneo con cámara falsa', () => {
+  let driver: WebDriver;
+  before(async () => {
+    // Cámara falsa (patrón de colores, sin QR) y sin el aviso de permiso: comprueba que la página de la extensión
+    // puede abrir la cámara sin ningún permiso en el manifest.
+    driver = await launch({ 'media.navigator.streams.fake': true, 'media.navigator.permission.disabled': true });
+  });
+  after(async () => driver?.quit());
+
+  test('abre la cámara sin permisos en el manifest y la apaga al cerrar la pestaña', async () => {
+    await bridge(driver, { op: 'clear' });
+    const tabId = await bridge<number>(driver, { op: 'openScan', mode: 'camera' });
+    await driver.wait(async () => (await bridge<string | null>(driver, { op: 'getStorage', key: 'e2eScanState' })) === 'live:camera', 10000);
+    await driver.executeScript('return 1'); // la ventana de control sigue siendo controlable
+    await bridge(driver, { op: 'closeTab', tabId });
+    await driver.wait(async () => (await bridge<string | null>(driver, { op: 'getStorage', key: 'e2eScanState' })) === 'stopped', 10000);
+  });
+});
+
 describe('Firefox HiDPI (devPixelsPerPx 2)', () => {
   let driver: WebDriver;
   before(async () => {

@@ -52,6 +52,14 @@ Mirilla is a browser extension that reads QR codes and barcodes. It is built so 
 Mirilla does not request access to all websites. It only acts on the current tab, and only
 after you ask it to.
 
+## Camera and screen
+
+If you choose "Scan with the camera" or "Scan the screen or another window", your browser asks for
+permission at that moment (Mirilla has no camera or screen permissions in its manifest). The image is
+read on your device, frame by frame: it is not recorded, no frame is saved and nothing is sent anywhere.
+The camera or capture stops as soon as a code is read, when you press "Stop" or when you close the tab
+(the camera, also when the tab is hidden).
+
 ## Public phishing list
 
 If it is on (it is by default; it can be turned off in the settings), Mirilla downloads a list of
