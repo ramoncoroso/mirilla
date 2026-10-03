@@ -232,24 +232,24 @@ descarga periódicamente una lista completa y compara en el equipo, como Safe Br
 - [x] Sin listas negras fijas dentro del paquete (caducan en días y engordan el paquete): ver «Listas públicas» abajo.
 
 #### 4.1 Página de escaneo: cámara, pantalla y PDF — tamaño L
-- [ ] Nueva página de la extensión `scan.html`, abierta en **su propia pestaña** desde el popup («Escanear con la cámara»,
+- [x] Nueva página de la extensión `scan.html` (*hecho 2026-10-03*, `entrypoints/scan/`), abierta en **su propia pestaña** desde el popup («Escanear con la cámara»,
   «Escanear pantalla u otra ventana»). No en el popup: Firefox lo cierra al salir el aviso de permisos y Chrome al abrir
   el selector de pantalla.
-- [ ] Cámara: `getUserMedia({ video })`, selector de cámara, vista previa, lectura continua (~8 fotogramas/s en un
+- [x] Cámara: `getUserMedia({ video })`, selector de cámara, vista previa, lectura continua (~8 fotogramas/s en un
   canvas → `decodeImageData`), se para al leer y al ocultar la pestaña (`visibilitychange`); nunca se graba ni se guarda
   un fotograma.
-- [ ] Pantalla: `getDisplayMedia()`; el mismo bucle de lectura; se deja de compartir al leer o al cerrar.
+- [x] Pantalla: `getDisplayMedia()`; el mismo bucle de lectura; se deja de compartir al leer o al cerrar.
 - [ ] **PDF** (el vector número uno del quishing: un PDF adjunto con un QR dentro, que los filtros de correo no suelen
   leer y en cuyo visor no se puede inyectar): abrir o arrastrar un PDF en la página de escaneo (también desde el popup) y
   analizar todas sus páginas en local con **pdf.js** incluido en el paquete (Apache-2.0; sin código remoto; revisar que
   su build cumple la CSP de MV3). Resultados por página; los peligrosos arriba. Límites de páginas y de tamaño.
-- [ ] Resultados con el mismo `renderCodes` (anti-phishing, GS1...), historial vía background.
-- [ ] **Primero, una prueba de concepto** de ambas APIs en páginas de extensión de Chrome y Firefox, para confirmar que no
+- [x] Resultados con el mismo `renderCodes` (anti-phishing, GS1...), historial vía background.
+- [x] **Primero, una prueba de concepto** (*hecha*: cámara en Chromium y Firefox y pantalla en Chromium, sin permisos en el manifest; la pantalla en Firefox no se puede automatizar) de ambas APIs en páginas de extensión de Chrome y Firefox, para confirmar que no
   hace falta ningún permiso en el manifest. Si hiciera falta alguno, se para y se consulta.
-- [ ] Pruebas: Chromium con cámara falsa que emite un QR (`--use-fake-device-for-media-stream` +
+- [x] Pruebas (*hechas*: 4 en Chromium con cámara falsa y `--auto-select-tab-capture-source-by-title`; Firefox con cámara falsa y estado vía storage): Chromium con cámara falsa que emite un QR (`--use-fake-device-for-media-stream` +
   `--use-file-for-fake-video-capture` con un vídeo generado con ffmpeg desde los fixtures) y pantalla falsa
   (`--auto-select-desktop-capture-source`); Firefox con `media.navigator.streams.fake` (comprobar interfaz y permisos).
-- [ ] Política de privacidad: cámara y pantalla se procesan en local, fotograma a fotograma, sin guardar nada.
+- [x] Política de privacidad: cámara y pantalla se procesan en local, fotograma a fotograma, sin guardar nada.
 
 #### 4.2 Marcar en la página dónde está cada código — tamaño M
 - [ ] `Code` gana la posición de zxing (cuatro esquinas), convertida de píxeles de captura a píxeles CSS (misma escala que

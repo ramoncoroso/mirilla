@@ -52,6 +52,14 @@ Mirilla es una extensión de navegador que lee códigos QR y de barras. Está he
 Mirilla no pide acceso a todas las webs. Solo actúa sobre la pestaña actual y solo después
 de que se lo pidas.
 
+## Cámara y pantalla
+
+Si eliges «Escanear con la cámara» o «Escanear la pantalla u otra ventana», tu navegador te pide
+permiso en ese momento (Mirilla no tiene permisos de cámara ni de pantalla en su manifiesto). La imagen
+se lee en tu equipo, fotograma a fotograma: no se graba, no se guarda ningún fotograma y no se envía a
+ningún sitio. La cámara o la captura se apagan en cuanto se lee un código, al pulsar «Parar» o al
+cerrar la pestaña (la cámara, también al ocultarla).
+
 ## Lista pública de phishing
 
 Si está activada (lo está por defecto; se desactiva en los ajustes), Mirilla descarga cada 6 horas

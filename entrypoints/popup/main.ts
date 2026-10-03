@@ -256,6 +256,14 @@ void (async () => {
 })();
 
 
+// Cámara y pantalla van en su propia pestaña (el popup se cerraría al pedir permisos o abrir el selector).
+for (const mode of ['camera', 'screen'] as const) {
+  $(`scan-${mode}`).addEventListener('click', () => {
+    void browser.tabs.create({ url: browser.runtime.getURL(`/scan.html?mode=${mode}`) });
+    window.close();
+  });
+}
+
 $('notice-ok').addEventListener('click', () => {
   $('notice').hidden = true;
   void markBlocklistNoticeSeen();

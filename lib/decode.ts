@@ -42,12 +42,13 @@ function ensureModule() {
 const MAX_SIDE = 8192;
 const MAX_PIXELS = 24_000_000;
 
-export async function decodeImageData(image: ImageData): Promise<Code[]> {
+/** `fast`: para vídeo en directo (cámara, pantalla), donde llega otro fotograma enseguida: sin girar ni invertir. */
+export async function decodeImageData(image: ImageData, { fast = false } = {}): Promise<Code[]> {
   await ensureModule();
   const results = await readBarcodes(image, {
     tryHarder: true,
-    tryRotate: true,
-    tryInvert: true,
+    tryRotate: !fast,
+    tryInvert: !fast,
     tryDownscale: true,
     maxNumberOfSymbols: 32,
     // Plain conserva los separadores GS de los datos GS1; la forma legible la genera toHri().

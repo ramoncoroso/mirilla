@@ -18,18 +18,21 @@ interface Options {
   lang: string;
   /** devicePixelRatio de la pantalla simulada. */
   dpr: number;
+  /** Argumentos extra de Chromium (cámara falsa, captura de pantalla automática...). */
+  launchArgs: string[];
 }
 
 export const test = base.extend<Options & { context: BrowserContext; sw: Worker; extId: string; pages: Map<string, string> }>({
   lang: ['en', { option: true }],
   dpr: [1, { option: true }],
+  launchArgs: [[], { option: true }],
   pages: async ({}, use) => use(new Map()),
-  context: async ({ lang, dpr, pages }, use) => {
+  context: async ({ lang, dpr, launchArgs, pages }, use) => {
     const context = await chromium.launchPersistentContext('', {
       channel: 'chromium',
       env: { ...process.env, LANGUAGE: lang },
       deviceScaleFactor: dpr,
-      args: [`--disable-extensions-except=${extPath}`, `--load-extension=${extPath}`],
+      args: [`--disable-extensions-except=${extPath}`, `--load-extension=${extPath}`, ...launchArgs],
     });
     // Web de pruebas en un origen http normal: /fixtures/* sirve las imágenes; el resto, las páginas registradas.
     await context.route(`${ORIGIN}/**`, (route) => {
