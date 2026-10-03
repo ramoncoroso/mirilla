@@ -92,3 +92,31 @@ describe('veredicto por tipo de contenido', () => {
     expect(worst('caution', 'danger', 'clear')).toBe('danger');
   });
 });
+
+describe('señales medidas con Phishing.Database', () => {
+  it('palabras de phishing en la ruta: solas no bastan, con otra señal sí', () => {
+    expect(verdict('https://github.com/login')).toBe('clear');
+    expect(messages('https://github.com/login')).toContain('urlPhishingPath');
+    expect(verdict('https://mi-tienda.example/cuenta/account')).toBe('clear');
+    // Plataforma compartida + palabras en la ruta → Precaución.
+    expect(verdict('https://business-ticket-bdb65.firebaseapp.com/verify/login.php')).toBe('caution');
+    // «loginator», «accounts-payable» no son la palabra «login» o «account».
+    expect(messages('https://example.com/loginator')).not.toContain('urlPhishingPath');
+  });
+
+  it('una página dentro de las carpetas internas de WordPress o .well-known es Precaución', () => {
+    expect(verdict('https://benirpierre.com/.well-known/acme-challenge/epostn/smstwo.php')).toBe('caution');
+    expect(verdict('https://amiralisiassi.com/wp-admin/x/../wp-content/schwab/index.html')).toBe('caution');
+    // Imágenes, estilos y la propia carpeta: normales.
+    expect(verdict('https://example.com/wp-content/uploads/2024/05/foto.jpg')).toBe('clear');
+    expect(verdict('https://example.com/.well-known/security.txt')).toBe('clear');
+  });
+
+  it('DNS dinámico y túneles: Precaución en un subdominio, nunca en la portada del servicio', () => {
+    expect(verdict('https://12132103.duckdns.org/confirm2-2fa.php')).not.toBe('clear');
+    expect(messages('https://abc123.ngrok-free.app/')).toContain('urlDynamicHost');
+    expect(verdict('https://abc123.ngrok-free.app/')).toBe('caution');
+    expect(verdict('https://www.duckdns.org/')).toBe('clear');
+    expect(verdict('https://duckdns.org/')).toBe('clear');
+  });
+});

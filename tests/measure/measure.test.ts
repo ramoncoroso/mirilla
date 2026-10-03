@@ -20,8 +20,8 @@ const TOP = 10_000;
 const REVIEWED_DANGER = new Set(['sssinstagram.com', 'tiktokio.com', 'xbox-dns.ru', 'tiktoklb.eu', 'tiktok-minis.us', 'googledomains.com']);
 /** Techo de Precaución en las webs más visitadas (hoy son casi todas acortadores). */
 const MAX_CAUTION = 20;
-/** Suelo de detección con señales (Peligro + Precaución) en la muestra de phishing; medido 2026-10-03. */
-const MIN_DETECTED = 0.3;
+/** Suelo de detección con señales (Peligro + Precaución) en la muestra de phishing; medido 2026-10-03: 35,4 %. */
+const MIN_DETECTED = 0.35;
 
 async function trancoTop(n: number): Promise<string[]> {
   mkdirSync(CACHE, { recursive: true });
