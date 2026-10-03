@@ -4,6 +4,7 @@ import { decodeBlob, type Code, type Rect } from '@/lib/decode';
 import { addToHistory, clearHistory, setHistoryEnabled } from '@/lib/history';
 import { t } from '@/lib/i18n';
 import type { FromPopup, ToBackground, ToContent } from '@/lib/messages';
+import { domainAge } from '@/lib/rdap';
 import { overallVerdict } from '@/lib/risk';
 import type { Verdict } from '@/lib/verdict';
 import { analyzeUrl } from '@/lib/url-safety';
@@ -53,6 +54,13 @@ export default defineBackground(() => {
       case 'open-url':
         // Se vuelve a validar aquí: el mensaje viene de un script que corre dentro de la página.
         if (sender.tab && analyzeUrl(msg.url).openable) void browser.tabs.create({ url: msg.url, index: sender.tab.index + 1 });
+        break;
+      case 'rdap-lookup':
+        // Solo desde el panel de Mirilla (marco principal) o una página de la extensión; el dominio se valida en domainAge.
+        if ((sender.tab && sender.frameId === 0) || fromExtensionPage(sender)) {
+          void domainAge(String(msg.domain)).then(sendResponse);
+          return true;
+        }
         break;
       // Desde el popup (u otra página de la extensión), nunca desde un script en una web.
       case 'start-selection':

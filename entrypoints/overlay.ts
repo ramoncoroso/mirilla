@@ -12,6 +12,7 @@
 
 import { browser } from 'wxt/browser';
 import { toAssessContext } from '@/lib/context';
+import type { DomainAge } from '@/lib/rdap';
 import type { Rect } from '@/lib/decode';
 import { t } from '@/lib/i18n';
 import type { ToBackground, ToContent } from '@/lib/messages';
@@ -98,6 +99,7 @@ export default defineUnlistedScript(() => {
   const actions = {
     openUrl: (url: string) => void browser.runtime.sendMessage({ type: 'open-url', url } satisfies ToBackground),
     copy: (text: string) => copyText(text),
+    investigate: (domain: string) => browser.runtime.sendMessage({ type: 'rdap-lookup', domain } satisfies ToBackground) as Promise<DomainAge>,
   };
 
   // ---- Selección de área ----

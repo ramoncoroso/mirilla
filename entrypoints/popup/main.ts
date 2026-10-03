@@ -1,5 +1,6 @@
 import { browser } from 'wxt/browser';
 import { loadContext } from '@/lib/context';
+import { domainAge } from '@/lib/rdap';
 import { decodeBlob, type Code } from '@/lib/decode';
 import { t } from '@/lib/i18n';
 import type { MessageKey } from '@/locales/messages';
@@ -33,6 +34,7 @@ const actions = {
   },
   // En una página de la extensión el respaldo con execCommand es seguro: ninguna web ve sus eventos.
   copy: (text: string) => copyText(text, { allowFallback: true }),
+  investigate: domainAge,
 };
 
 /** El historial se escribe solo desde el background (una única cola); nunca en ventanas privadas. */

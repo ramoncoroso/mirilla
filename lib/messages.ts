@@ -4,7 +4,9 @@ import type { Code, Rect } from './decode';
 /** Mensajes de la página (overlay) al background. `rect` va en píxeles CSS del viewport. */
 export type ToBackground =
   | { type: 'region-selected'; rect: Rect; viewportWidth: number }
-  | { type: 'open-url'; url: string };
+  | { type: 'open-url'; url: string }
+  /** «Investigar más» desde el panel de la página: el background consulta RDAP y responde con un DomainAge. */
+  | { type: 'rdap-lookup'; domain: string };
 
 /** Mensajes del background a la página. */
 export type ToContent =

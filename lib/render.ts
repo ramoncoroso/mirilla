@@ -5,16 +5,19 @@
 import type { MessageKey } from '@/locales/messages';
 import type { Code } from './decode';
 import { stripTrackers } from './data/trackers';
+import { NEW_DOMAIN_DAYS, type DomainAge } from './rdap';
 import { gtinPrefix, ISO_COUNTRY, ISO_CURRENCY, parseGs1Date, type Gs1Element } from './gs1';
 import { t } from './i18n';
 import { parseCode, type Parsed } from './parse';
 import { revealHidden } from './unicode';
 import { highlightRange, type Finding } from './url-safety';
-import { assess, DEFAULT_CONTEXT, type AssessContext, type Assessment, type LinkCheck, type Verdict } from './verdict';
+import { assess, DEFAULT_CONTEXT, worst, type AssessContext, type Assessment, type LinkCheck, type Verdict } from './verdict';
 
 export interface RenderActions {
   openUrl(url: string): void;
   copy(text: string): Promise<void>;
+  /** «Investigar más»: antigüedad del dominio por RDAP (solo si el usuario lo pulsa). */
+  investigate?(domain: string): Promise<DomainAge>;
 }
 
 export function renderCodes(codes: Code[], actions: RenderActions, ctx: AssessContext = DEFAULT_CONTEXT): HTMLElement {
@@ -105,6 +108,18 @@ function renderBody(p: Parsed, code: Code, as: Assessment, a: RenderActions, cle
           buttons.append(openButton(target.href, dangerous ? 'danger' : as.link.verdict, a));
           if (dangerous || target.note) buttons.append(copyButton(t('copyLink'), target.href, a));
           if (dangerous || as.link.verdict === 'caution') buttons.append(...reportButtons(as.link.report.href, a));
+          if (a.investigate && as.link.report.domain && as.verdict !== 'trusted') {
+            // Un dominio recién registrado sube el veredicto a Precaución (como mínimo) y quita el destacado de «Abrir».
+            const onNewDomain = () => {
+              const card = body.closest<HTMLElement>('.qr-card');
+              const raised = worst(as.verdict, 'caution');
+              if (!card || raised === as.verdict) return;
+              card.dataset.verdict = raised;
+              card.querySelector('.qr-verdict')?.replaceWith(renderVerdict({ ...as, verdict: raised }));
+              buttons.querySelector('.qr-btn-primary')?.classList.remove('qr-btn-primary');
+            };
+            body.append(investigateBox(as.link.report.domain, a.investigate, onNewDomain));
+          }
         }
       }
       break;
@@ -213,6 +228,32 @@ function cleanTarget(link: LinkCheck, clean: boolean): { href: string; note?: HT
   if (!clean) return { href: link.report.href };
   const { href, removed } = stripTrackers(link.report.href);
   return removed.length ? { href, note: el('p', 'qr-note qr-trackers', t('trackersRemoved', removed.join(', '))) } : { href };
+}
+
+/** «Investigar más»: explica antes qué se consulta y a quién; el resultado aparece debajo. */
+function investigateBox(domain: string, investigate: (domain: string) => Promise<DomainAge>, onNewDomain: () => void): HTMLElement {
+  const box = el('div', 'qr-investigate');
+  const result = el('div', 'qr-investigate-result');
+  result.setAttribute('aria-live', 'polite');
+  const go = button(t('investigateMore'), async () => {
+    go.disabled = true;
+    go.textContent = t('investigating');
+    const age = await investigate(domain);
+    result.replaceChildren(investigateResult(age));
+    go.remove();
+    if (age.status === 'ok' && age.days < NEW_DOMAIN_DAYS) onNewDomain();
+  });
+  box.append(go, el('p', 'qr-note', t('investigateExplain', domain)), result);
+  return box;
+}
+
+function investigateResult(age: DomainAge): HTMLElement {
+  if (age.status === 'error') return el('p', 'qr-finding qr-info', t('investigateError'));
+  if (age.status === 'unavailable') return el('p', 'qr-finding qr-info', t('investigateUnavailable'));
+  const date = new Intl.DateTimeFormat(t('lang'), { dateStyle: 'medium' }).format(new Date(age.registered));
+  return age.days < NEW_DOMAIN_DAYS
+    ? el('p', 'qr-finding qr-warn qr-domain-new', t('investigateNew', age.days, date))
+    : el('p', 'qr-finding qr-info qr-domain-age', t('investigateAge', date, age.days.toLocaleString(t('lang'))));
 }
 
 /** Formulario de denuncia de Google Safe Browsing (no admite la URL ya rellena: se copia para pegarla). */
@@ -455,6 +496,8 @@ export const RESULT_CSS = `
 .qr-verdict-caution { background: var(--qr-warn-bg); color: var(--qr-warn-fg); }
 .qr-verdict-clear { background: var(--qr-info-bg); color: var(--qr-info-fg); }
 .qr-verdict-trusted { background: var(--qr-ok-bg); color: var(--qr-ok-fg); }
+.qr-investigate { margin-top: 8px; }
+.qr-investigate .qr-note { margin-top: 2px; }
 .qr-more { margin: 4px 0; font-size: 12px; }
 .qr-more summary { cursor: pointer; color: var(--qr-muted); }
 .qr-embedded { margin-top: 8px; padding-top: 6px; border-top: 1px dashed var(--qr-border); }
