@@ -9,7 +9,7 @@ import { t } from './i18n';
 import { parseCode, type Parsed } from './parse';
 import { revealHidden } from './unicode';
 import { highlightRange, type Finding } from './url-safety';
-import { assess, DEFAULT_CONTEXT, type AssessContext, type Assessment, type LinkCheck } from './verdict';
+import { assess, DEFAULT_CONTEXT, type AssessContext, type Assessment, type LinkCheck, type Verdict } from './verdict';
 
 export interface RenderActions {
   openUrl(url: string): void;
@@ -30,7 +30,7 @@ export function renderCode(code: Code, actions: RenderActions, ctx: AssessContex
   const head = el('header', 'qr-head');
   const kind = parsed.kind === 'url' && parsed.gs1 ? 'kindDigitalLink' : KIND_LABEL[parsed.kind];
   head.append(el('span', 'qr-badge', code.format), el('span', 'qr-kind', t(kind)));
-  card.append(head);
+  card.append(head, renderVerdict(assessment));
   card.append(renderBody(parsed, code, assessment, actions));
   return card;
 }
@@ -49,6 +49,39 @@ const KIND_LABEL: Record<Parsed['kind'], MessageKey> = {
   product: 'kindProduct',
 };
 
+const VERDICT_ICON: Record<Verdict, string> = { danger: '⛔', caution: '⚠️', clear: 'ℹ️', trusted: '✅' };
+const VERDICT_LABEL: Record<Verdict, MessageKey> = {
+  danger: 'verdictDanger',
+  caution: 'verdictCaution',
+  clear: 'verdictClear',
+  trusted: 'verdictTrusted',
+};
+
+/**
+ * Veredicto único arriba de cada resultado: icono y etiqueta de texto (no solo color). Sin riesgo, nunca «Seguro»:
+ * el dominio real en grande y la pregunta de si es el que se esperaba, la mejor defensa contra un QR pegado encima.
+ */
+function renderVerdict(as: Assessment): HTMLElement {
+  const box = el('div', `qr-verdict qr-verdict-${as.verdict}`);
+  const title = el('p', 'qr-verdict-title');
+  title.append(el('span', 'qr-verdict-icon', VERDICT_ICON[as.verdict]), el('strong', 'qr-verdict-label', t(VERDICT_LABEL[as.verdict])));
+  title.firstElementChild!.setAttribute('aria-hidden', 'true');
+  box.append(title);
+  const link = as.link?.report;
+  if (as.verdict === 'trusted') {
+    const trusted = [as.link, ...as.embedded].find((l) => l?.verdict === 'trusted');
+    if (trusted) box.append(el('p', 'qr-verdict-detail', t('verdictTrustedDetail', trusted.report.domain)));
+  } else if (as.verdict === 'clear' && link?.openable && link.host) {
+    // «Vas a $1. ¿…?» con el dominio resaltado: se parte el texto traducido por la sustitución.
+    const MARK = '\uE000'; // carácter de uso privado: getMessage quita los de control
+    const [before = '', after = ''] = t('verdictGoingTo', MARK).split(MARK);
+    const detail = el('p', 'qr-verdict-detail');
+    detail.append(before, el('strong', 'qr-verdict-domain', link.domain || link.host), after);
+    box.append(detail, el('p', 'qr-verdict-limits', t('verdictLimits')));
+  }
+  return box;
+}
+
 function renderBody(p: Parsed, code: Code, as: Assessment, a: RenderActions): HTMLElement {
   const body = el('div', 'qr-body');
   const buttons = el('div', 'qr-actions');
@@ -62,8 +95,13 @@ function renderBody(p: Parsed, code: Code, as: Assessment, a: RenderActions): HT
       if (as.link) {
         // Los caracteres ocultos se avisan en el contenido, pero también hacen peligroso el enlace.
         const dangerous = as.link.verdict === 'danger' || as.findings.some((f) => f.message === 'hiddenChars');
-        body.append(...renderLink(as.link));
-        if (as.link.report.openable) buttons.append(openButton(as.link.report.href, dangerous, a));
+        // El «es uno de tus sitios de confianza» ya lo dice el veredicto.
+        const shown = as.verdict === 'trusted' ? as.link.findings.filter((f) => f.message !== 'verdictTrustedDetail') : as.link.findings;
+        body.append(renderUrl(as.link.report.href, as.link.report.host), ...findingsList(shown));
+        if (as.link.report.openable) {
+          buttons.append(openButton(as.link.report.href, dangerous ? 'danger' : as.link.verdict, a));
+          if (dangerous) buttons.append(copyButton(t('copyLink'), as.link.report.href, a));
+        }
       }
       break;
     }
@@ -134,7 +172,7 @@ function renderBody(p: Parsed, code: Code, as: Assessment, a: RenderActions): HT
       item.append(...renderLink(link));
       if (link.report.openable) {
         const row = el('div', 'qr-actions');
-        row.append(openButton(link.report.href, link.verdict === 'danger', a), copyButton(t('copyLink'), link.report.href, a));
+        row.append(openButton(link.report.href, link.verdict, a), copyButton(t('copyLink'), link.report.href, a));
         item.append(row);
       }
       box.append(item);
@@ -152,13 +190,48 @@ function renderLink(link: LinkCheck): HTMLElement[] {
   return [renderUrl(link.report.href, link.report.host), ...findingsList(link.findings)];
 }
 
+/** Avisos a la vista; las notas informativas, plegadas debajo (evita la fatiga de avisos). */
 function findingsList(findings: readonly Finding[]): HTMLElement[] {
-  return findings.map((f) => el('p', `qr-finding qr-${f.level}`, t(f.message, ...(f.args ?? []))));
+  const finding = (f: Finding) => el('p', `qr-finding qr-${f.level}`, t(f.message, ...(f.args ?? [])));
+  const notes = findings.filter((f) => f.level === 'info');
+  const shown = findings.filter((f) => f.level !== 'info').map(finding);
+  if (notes.length === 0) return shown;
+  const more = el('details', 'qr-more');
+  more.append(el('summary', '', t('detailsMore', notes.length)), ...notes.map(finding));
+  return [...shown, more];
 }
 
-function openButton(href: string, dangerous: boolean, a: RenderActions) {
-  const open = button(dangerous ? t('openAnyway') : t('open'), () => a.openUrl(href));
-  open.classList.add(dangerous ? 'qr-btn-danger' : 'qr-btn-primary');
+/** Ventana para la segunda pulsación de «Abrir de todos modos». */
+const CONFIRM_MS = 5000;
+
+/**
+ * Fricción proporcional al riesgo: sin señales, «Abrir» destacado; con Precaución, botón normal; con Peligro,
+ * «Abrir de todos modos» pide una segunda pulsación (y al lado se ofrece copiar el enlace).
+ */
+function openButton(href: string, verdict: Verdict, a: RenderActions) {
+  if (verdict !== 'danger') {
+    const open = button(t('open'), () => a.openUrl(href));
+    if (verdict !== 'caution') open.classList.add('qr-btn-primary');
+    return open;
+  }
+  let armed = 0;
+  const open = button(t('openAnyway'), () => {
+    if (Date.now() - armed < CONFIRM_MS) {
+      armed = 0;
+      open.textContent = t('openAnyway');
+      a.openUrl(href);
+      return;
+    }
+    armed = Date.now();
+    open.textContent = t('openConfirm');
+    setTimeout(() => {
+      if (armed && Date.now() - armed >= CONFIRM_MS) {
+        armed = 0;
+        open.textContent = t('openAnyway');
+      }
+    }, CONFIRM_MS);
+  });
+  open.classList.add('qr-btn-danger');
   return open;
 }
 
@@ -334,6 +407,18 @@ export const RESULT_CSS = `
 .qr-danger { background: var(--qr-danger-bg); color: var(--qr-danger-fg); }
 .qr-warn { background: var(--qr-warn-bg); color: var(--qr-warn-fg); }
 .qr-info { background: var(--qr-info-bg); color: var(--qr-info-fg); }
+.qr-verdict { margin: 0 0 8px; padding: 8px 10px; border-radius: 8px; border-left: 4px solid; }
+.qr-verdict p { margin: 0; }
+.qr-verdict-title { display: flex; align-items: center; gap: 6px; font-size: 14px; }
+.qr-verdict-detail { margin-top: 4px !important; }
+.qr-verdict-domain { font: 600 15px/1.3 ui-monospace, monospace; word-break: break-all; }
+.qr-verdict-limits { margin-top: 2px !important; font-size: 11px; opacity: .85; }
+.qr-verdict-danger { background: var(--qr-danger-bg); color: var(--qr-danger-fg); }
+.qr-verdict-caution { background: var(--qr-warn-bg); color: var(--qr-warn-fg); }
+.qr-verdict-clear { background: var(--qr-info-bg); color: var(--qr-info-fg); }
+.qr-verdict-trusted { background: var(--qr-ok-bg); color: var(--qr-ok-fg); }
+.qr-more { margin: 4px 0; font-size: 12px; }
+.qr-more summary { cursor: pointer; color: var(--qr-muted); }
 .qr-embedded { margin-top: 8px; padding-top: 6px; border-top: 1px dashed var(--qr-border); }
 .qr-embedded-title { font-size: 12px; font-weight: 600; margin: 0 0 4px; color: var(--qr-muted); }
 .qr-embedded-link + .qr-embedded-link { margin-top: 8px; }
@@ -349,10 +434,12 @@ export const THEME_CSS = `
   --qr-bg: #ffffff; --qr-fg: #1a1a1a; --qr-muted: #5f6368; --qr-border: #dadce0; --qr-card: #fafafa; --qr-badge: #eceff1;
   --qr-accent: #1a73e8; --qr-primary: #1967d2; --qr-highlight: #fff3b0;
   --qr-danger-bg: #fce8e6; --qr-danger-fg: #b3261e; --qr-warn-bg: #fef7e0; --qr-warn-fg: #8a5a00; --qr-info-bg: #e8f0fe; --qr-info-fg: #174ea6;
+  --qr-ok-bg: #e6f4ea; --qr-ok-fg: #0d652d;
 `;
 
 export const THEME_DARK_CSS = `
   --qr-bg: #202124; --qr-fg: #e8eaed; --qr-muted: #9aa0a6; --qr-border: #3c4043; --qr-card: #292a2d; --qr-badge: #35363a;
   --qr-accent: #4c8df6; --qr-primary: #1967d2; --qr-highlight: #5c4b00;
   --qr-danger-bg: #4a1f1c; --qr-danger-fg: #f6aea9; --qr-warn-bg: #3f3200; --qr-warn-fg: #fdd663; --qr-info-bg: #1c2b4a; --qr-info-fg: #aecbfa;
+  --qr-ok-bg: #173623; --qr-ok-fg: #a8dab5;
 `;

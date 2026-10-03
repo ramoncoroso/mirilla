@@ -157,19 +157,20 @@ Decidido por el usuario (2026-09-27). Todo en local: nada se consulta a servicio
   explica que esta señal no está disponible.
 
 **Avisar mejor**
-- [ ] **Veredicto único y honesto** arriba de cada resultado, con los detalles debajo (los informativos, plegados; evita
+- [x] **Veredicto único y honesto** (*hecho 2026-10-03*, `renderVerdict` en `lib/render.ts`) arriba de cada resultado, con los detalles debajo (los informativos, plegados; evita
   la fatiga de avisos). Mirilla **analiza la dirección, no la página** (no la visita, no conoce su contenido, antigüedad
   ni reputación), así que nunca dice «Seguro»:
   - ⛔ **Peligro**: hay pruebas (aparece en una lista de phishing/malware o hay un truco evidente);
   - ⚠️ **Precaución**: hay señales de riesgo;
   - ℹ️ **Sin señales de riesgo**, siempre con el dominio real en grande y la pregunta «Vas a **dominio**. ¿Es el sitio
     que esperabas?» (la defensa más eficaz contra el QR fraudulento: quien escanea un parquímetro sabe qué web espera).
-- [ ] **Puntuación combinada**: señales leves que coinciden (plataforma compartida + palabras de phishing + redirección)
+- [x] **Puntuación combinada** (*hecho* en `lib/verdict.ts`; revisar los umbrales con la medición de detección): señales leves que coinciden (plataforma compartida + palabras de phishing + redirección)
   suben el veredicto. Umbrales ajustados con las mediciones de abajo.
-- [ ] **Fricción proporcional**: sin riesgo → «Abrir»; Precaución → botón secundario; Peligro → «Abrir de todos modos»
+- [x] **Fricción proporcional** (*hecho 2026-10-03*): sin riesgo → «Abrir»; Precaución → botón secundario; Peligro → «Abrir de todos modos»
   con segunda confirmación y «Copiar el enlace» como alternativa.
-- [ ] **Accesibles y accionables**: icono + etiqueta de texto además del color; cada aviso dice qué puede pasar y qué hacer.
-- [ ] **Icono de la extensión**: «!» rojo para Peligro (ya existe) y marca amarilla para Precaución.
+- [x] **Accesibles y accionables**: icono + etiqueta de texto además del color; cada aviso dice qué puede pasar y qué hacer
+  (*icono y etiqueta hechos 2026-10-03*; los textos de los avisos ya lo dicen en su mayoría, repasar en 4.9).
+- [x] **Icono de la extensión** (*hecho 2026-10-03*, `overallVerdict` en `lib/risk.ts`): «!» rojo para Peligro (ya existe) y marca amarilla para Precaución.
 
 **Actuar con un clic**
 - [ ] **Denunciar**: en resultados en Peligro o Precaución, botón que abre ya rellenos los formularios de denuncia (Google
