@@ -1,4 +1,5 @@
 import { browser } from 'wxt/browser';
+import { loadContext } from '@/lib/context';
 import { decodeBlob, type Code } from '@/lib/decode';
 import { t } from '@/lib/i18n';
 import type { MessageKey } from '@/locales/messages';
@@ -45,14 +46,16 @@ function setStatus(text: string | null) {
   status.textContent = text ?? '';
 }
 
-function showCodes(codes: Code[]) {
+/** El contexto (sitios de confianza, dominios ya vistos) se carga antes de guardar la lectura en el historial. */
+async function showCodes(codes: Code[]) {
+  const ctx = await loadContext().catch(() => undefined);
   clearResults();
   if (codes.length === 0) {
     setStatus(t('noCodesShort'));
     return;
   }
   setStatus(null);
-  results.append(renderCodes(codes, actions));
+  results.append(renderCodes(codes, actions, ctx));
 }
 
 async function activeTab() {
@@ -68,7 +71,7 @@ async function decodeAndShow(blob: Blob, source: string) {
   clearResults();
   try {
     const codes = await decodeBlob(blob);
-    showCodes(codes);
+    await showCodes(codes);
     await saveToHistory(codes, source);
     void renderHistory();
   } catch (e) {
@@ -209,8 +212,8 @@ async function renderHistory() {
     const btn = el('button');
     btn.title = revealHidden(entry.text);
     btn.append(el('span', 'qr-badge', entry.format), el('span', 'h-text', revealHidden(entry.text)), el('span', 'h-when', timeAgo(entry.at)));
-    btn.addEventListener('click', () => {
-      showCodes([entry]);
+    btn.addEventListener('click', async () => {
+      await showCodes([entry]);
       window.scrollTo({ top: 0 });
     });
     li.append(btn);
@@ -248,5 +251,7 @@ void (async () => {
 
 // Solo Firefox lo necesita (geckodriver no puede ejecutar scripts en páginas de extensión).
 if (__E2E__ && import.meta.env.FIREFOX) void import('@/lib/e2e-bridge').then((m) => m.mount());
+
+$('settings').addEventListener('click', () => void browser.runtime.openOptionsPage());
 
 window.addEventListener('pagehide', clearResults);

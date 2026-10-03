@@ -1,0 +1,27 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mirilla</title>
+    <meta name="manifest.open_in_tab" content="true" />
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <!-- Los textos se rellenan desde _locales con data-i18n (ver main.ts). -->
+    <main>
+      <h1 data-i18n="optionsTitle"></h1>
+      <section id="trusted-box">
+        <h2 data-i18n="trustedTitle"></h2>
+        <p class="help" data-i18n="trustedHelp"></p>
+        <form id="trusted-form">
+          <input id="trusted-input" type="text" autocomplete="off" spellcheck="false" />
+          <button class="qr-btn qr-btn-primary" type="submit" data-i18n="trustedAdd"></button>
+        </form>
+        <p id="trusted-status" class="status" role="status"></p>
+        <ul id="trusted-list"></ul>
+      </section>
+    </main>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

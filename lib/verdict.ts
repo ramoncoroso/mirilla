@@ -24,6 +24,8 @@ export interface AssessContext {
   trusted: readonly string[];
   /** Dominios ya leídos antes con Mirilla, o null si el historial está desactivado. */
   known: ReadonlySet<string> | null;
+  /** El usuario desactivó el historial: la señal de familiaridad no está disponible (se explica en una nota). */
+  historyOff?: boolean;
 }
 
 export interface LinkCheck {
@@ -90,11 +92,15 @@ export function assessUrl(raw: string, ctx: AssessContext = DEFAULT_CONTEXT): Li
   if (web && !trusted && ctx.known && !ctx.known.has(report.domain) && !ownerOf(report.domain, ctx.refs)) {
     findings.push({ level: 'info', message: 'urlFirstVisit' });
   }
+  if (web && !trusted && ctx.historyOff) findings.push({ level: 'info', message: 'urlFamiliarityOff' });
 
   let verdict = verdictOf(findings);
   // Las señales que suman por sí solas llegan a Peligro: se explica por qué.
   if (verdict === 'danger' && !findings.some((f) => f.level === 'danger')) findings.unshift({ level: 'danger', message: 'urlCombined' });
-  if (trusted && verdict === 'clear') verdict = 'trusted';
+  if (trusted && verdict === 'clear') {
+    verdict = 'trusted';
+    findings.unshift({ level: 'info', message: 'verdictTrustedDetail', args: [report.domain] });
+  }
   return { report, verdict, findings };
 }
 
