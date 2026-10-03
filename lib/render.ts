@@ -8,7 +8,7 @@ import { stripTrackers } from './data/trackers';
 import { NEW_DOMAIN_DAYS, type DomainAge } from './rdap';
 import { gtinPrefix, ISO_COUNTRY, ISO_CURRENCY, parseGs1Date, type Gs1Element } from './gs1';
 import { t } from './i18n';
-import { parseCode, type Parsed } from './parse';
+import { parseCode, type EventTime, type Parsed } from './parse';
 import { revealHidden } from './unicode';
 import { highlightRange, type Finding } from './url-safety';
 import { assess, DEFAULT_CONTEXT, worst, type AssessContext, type Assessment, type LinkCheck, type Verdict } from './verdict';
@@ -65,6 +65,9 @@ const KIND_LABEL: Record<Parsed['kind'], MessageKey> = {
   contact: 'kindContact',
   sepa: 'kindSepa',
   text: 'kindText',
+  event: 'kindEvent',
+  otp: 'kindOtp',
+  crypto: 'kindCrypto',
   gs1: 'kindGs1',
   product: 'kindProduct',
 };
@@ -192,6 +195,42 @@ function renderBody(p: Parsed, code: Code, as: Assessment, a: RenderActions, cle
       if (gtin) buttons.append(copyButton(t('copyGtin'), gtin.value, a));
       break;
     }
+    case 'event':
+      body.append(
+        dl([
+          [t('fieldTitle'), p.title],
+          [t('fieldStart'), p.start ? formatEventTime(p.start) : ''],
+          [t('fieldEnd'), p.end ? formatEventTime(p.end) : ''],
+          [t('fieldPlace'), p.location],
+          [t('fieldDescription'), p.description],
+        ]),
+      );
+      buttons.append(icsButton(p.ics, p.title));
+      break;
+    case 'otp':
+      body.append(
+        dl([
+          [t('fieldIssuer'), p.issuer],
+          [t('fieldAccount'), p.account],
+          [t('fieldCodes'), p.type === 'totp' ? t('otpCodes', p.digits, p.period, p.algorithm) : t('otpCounter', p.digits, p.algorithm)],
+        ]),
+        secretRow(p.secret),
+      );
+      break;
+    case 'crypto': {
+      const unit = p.coin === 'bitcoin' ? ' BTC' : p.coin === 'ethereum' ? ' wei' : '';
+      body.append(
+        dl([
+          [t('fieldNetwork2'), CRYPTO_NAME[p.coin]],
+          [t('fieldAddress'), p.address],
+          [t('fieldAmount'), p.amount ? `${p.amount}${unit}` : ''],
+          [t('fieldLabel'), p.label],
+          [t('fieldMessage'), p.message],
+        ]),
+      );
+      if (p.addressValid !== false) buttons.append(copyButton(t('copyAddress'), p.address, a));
+      break;
+    }
     case 'product':
       body.append(dl([[t('gs1Gtin'), p.gtin], ...prefixRow(p.gtin)]));
       if (isCountryPrefix(p.gtin)) body.append(el('p', 'qr-note', t('gs1PrefixNote')));
@@ -218,7 +257,8 @@ function renderBody(p: Parsed, code: Code, as: Assessment, a: RenderActions, cle
     body.append(box);
   }
 
-  buttons.append(copyButton(p.kind === 'text' ? t('copy') : t('copyContent'), code.text, a));
+  // En 2FA no: el contenido lleva la clave secreta, que va oculta.
+  if (p.kind !== 'otp') buttons.append(copyButton(p.kind === 'text' ? t('copy') : t('copyContent'), code.text, a));
   body.append(buttons);
   return body;
 }
@@ -237,6 +277,47 @@ function findingsList(findings: readonly Finding[]): HTMLElement[] {
   const more = el('details', 'qr-more');
   more.append(el('summary', '', t('detailsMore', notes.length)), ...notes.map(finding));
   return [...shown, more];
+}
+
+const CRYPTO_NAME = { bitcoin: 'Bitcoin', ethereum: 'Ethereum', lightning: 'Lightning (Bitcoin)' } as const;
+
+/** Fecha de un evento en el idioma de la interfaz. Con zona (TZID), la hora de esa zona y su nombre. */
+export function formatEventTime(time: EventTime): string {
+  const lang = t('lang');
+  if (time.allDay) return new Intl.DateTimeFormat(lang, { dateStyle: 'full', timeZone: 'UTC' }).format(new Date(`${time.iso}T00:00:00Z`));
+  if (time.tz === 'UTC') return new Intl.DateTimeFormat(lang, { dateStyle: 'full', timeStyle: 'short' }).format(new Date(time.iso));
+  // Hora de pared de otra zona (o flotante): se muestra tal cual, con la zona al lado.
+  const wall = new Intl.DateTimeFormat(lang, { dateStyle: 'full', timeStyle: 'short', timeZone: 'UTC' }).format(new Date(`${time.iso}Z`));
+  return time.tz ? `${wall} (${time.tz})` : wall;
+}
+
+/** «Añadir al calendario»: descarga un .ics generado en local (el propio evento leído). */
+function icsButton(ics: string, title: string): HTMLElement {
+  const link = el('a', 'qr-btn qr-btn-primary', t('addToCalendar')) as HTMLAnchorElement;
+  link.download = `${(title || 'evento').replace(/[\\/:*?"<>|\u0000-\u001f]+/g, ' ').trim().slice(0, 60) || 'evento'}.ics`;
+  link.href = '#';
+  link.addEventListener('click', () => {
+    const url = URL.createObjectURL(new Blob([ics], { type: 'text/calendar' }));
+    link.href = url;
+    setTimeout(() => URL.revokeObjectURL(url), 10_000);
+  });
+  return link;
+}
+
+/** La clave de 2FA, oculta por defecto: quien mira la pantalla no debe poder copiarla. */
+function secretRow(secret: string): HTMLElement {
+  const row = el('div', 'qr-secret');
+  const value = el('code', 'qr-secret-value', '•'.repeat(Math.min(secret.length, 16)));
+  const toggle = button(t('showSecret'), () => {
+    const shown = toggle.dataset.shown !== 'true';
+    toggle.dataset.shown = String(shown);
+    value.textContent = shown ? secret : '•'.repeat(Math.min(secret.length, 16));
+    toggle.textContent = t(shown ? 'hideSecret' : 'showSecret');
+    toggle.setAttribute('aria-label', `${toggle.textContent} — ${t('fieldSecret')}`);
+  });
+  toggle.setAttribute('aria-label', `${t('showSecret')} — ${t('fieldSecret')}`);
+  row.append(el('span', 'qr-secret-label', t('fieldSecret')), value, toggle);
+  return row;
 }
 
 /** Lo que se abre o copia: el enlace sin parámetros de rastreo (si está activado), con una nota de lo que se quita. */
@@ -516,6 +597,9 @@ export const RESULT_CSS = `
 .qr-investigate .qr-note { margin-top: 2px; }
 .qr-pdf { display: flex; flex-direction: column; gap: 14px; }
 .qr-pdf-title { font-size: 13px; margin: 0 0 6px; color: var(--qr-muted); }
+.qr-secret { display: flex; align-items: center; gap: 8px; margin: 0 0 6px; flex-wrap: wrap; }
+.qr-secret-label { color: var(--qr-muted); }
+.qr-secret-value { font: 13px ui-monospace, monospace; word-break: break-all; }
 .qr-more { margin: 4px 0; font-size: 12px; }
 .qr-more summary { cursor: pointer; color: var(--qr-muted); }
 .qr-embedded { margin-top: 8px; padding-top: 6px; border-top: 1px dashed var(--qr-border); }

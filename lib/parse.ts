@@ -2,6 +2,7 @@
 // Las etiquetas de campo son claves de mensaje: la traducción la hace la interfaz.
 
 import type { MessageKey } from '@/locales/messages';
+import { isEthereumAddressFormat, isValidBitcoinAddress } from './crypto-address';
 import type { Code } from './decode';
 import { parseDigitalLink, parseGs1, type Gs1Element } from './gs1';
 
@@ -18,7 +19,29 @@ export type Parsed =
   | { kind: 'geo'; lat: number; lon: number; query: string }
   | { kind: 'contact'; name: string; fields: Field[] }
   | { kind: 'sepa'; name: string; iban: string; ibanValid: boolean; bic: string; /** En euros, p. ej. "12.50" (vacío si no lo indica). */ amount: string; reference: string }
+  | { kind: 'event'; title: string; start?: EventTime; end?: EventTime; location: string; description: string; /** El VEVENT (o VCALENDAR) original, para el .ics. */ ics: string }
+  | { kind: 'otp'; type: 'totp' | 'hotp'; issuer: string; account: string; secret: string; algorithm: string; digits: number; period: number; counter?: number }
+  | {
+      kind: 'crypto';
+      coin: 'bitcoin' | 'ethereum' | 'lightning';
+      /** Dirección (o factura Lightning). */
+      address: string;
+      /** Checksum correcto (Bitcoin: Base58Check o Bech32/Bech32m); null si no se puede comprobar. */
+      addressValid: boolean | null;
+      /** Importe tal como viene (BTC en BIP 21; en Ethereum, el `value` en wei). */
+      amount: string;
+      label: string;
+      message: string;
+    }
   | { kind: 'text'; text: string };
+
+/** Fecha de un evento: `iso` sin zona si es hora local de `tz` («2026-10-03T10:00:00»), con Z si es UTC, o solo fecha. */
+export interface EventTime {
+  iso: string;
+  allDay: boolean;
+  /** Zona IANA del TZID, 'UTC', o '' si es hora «flotante» (la del que lo mira). */
+  tz: string;
+}
 
 /** Formatos cuyo contenido es un GTIN (número de producto). */
 const PRODUCT_FORMATS = new Set(['EAN-13', 'EAN-8', 'UPC-A', 'UPC-E', 'ITF-14', 'ISBN']);
@@ -55,6 +78,23 @@ export function parseContent(raw: string): Parsed {
   if (lower.startsWith('sms:') || lower.startsWith('smsto:')) return parseSms(text);
   if (lower.startsWith('geo:')) return parseGeo(text) ?? { kind: 'text', text: raw };
   if (text.startsWith('BCD\n') || text.startsWith('BCD\r\n')) return parseEpc(text) ?? { kind: 'text', text: raw };
+  if (lower.startsWith('begin:vevent') || lower.startsWith('begin:vcalendar')) return parseEvent(text) ?? { kind: 'text', text: raw };
+  if (lower.startsWith('otpauth://totp/') || lower.startsWith('otpauth://hotp/')) {
+    const otp = parseOtp(text);
+    // Sin `secret` no hay nada que mostrar como OTP: que pase por el análisis de enlaces, como antes.
+    if (otp) return otp;
+  }
+  if (lower.startsWith('bitcoin:')) {
+    const btc = parseBitcoin(text);
+    if (btc) return btc;
+  }
+  if (lower.startsWith('lightning:')) {
+    return { kind: 'crypto', coin: 'lightning', address: text.slice('lightning:'.length), addressValid: null, amount: '', label: '', message: '' };
+  }
+  if (lower.startsWith('ethereum:')) {
+    const eth = parseEthereum(text);
+    if (eth) return eth;
+  }
 
   // Los esquemas web, los peligrosos y los que abren otras aplicaciones se tratan como URL para que
   // pasen por el análisis de seguridad. Otros "X:valor" (SN:ABC123, Lote:42) son texto normal.
@@ -268,6 +308,212 @@ function parseEpc(text: string): Parsed | null {
     ibanValid: isValidIban(iban),
     amount,
     reference: l[9] || l[10] || '',
+  };
+}
+
+// --- Eventos (iCalendar / VEVENT, RFC 5545) ----------------------------------------------------
+
+interface IcsLine {
+  name: string;
+  params: Map<string, string>;
+  value: string;
+}
+
+// "NAME;PARAM=V;PARAM2=V2:value" → nombre, parámetros y valor. No contempla valores entre comillas
+// con ":" dentro (ALTREP...), que no usamos.
+function parseIcsLine(line: string): IcsLine | null {
+  const idx = line.indexOf(':');
+  if (idx < 0) return null;
+  const [namePart, ...paramParts] = line.slice(0, idx).split(';');
+  const params = new Map<string, string>();
+  for (const p of paramParts) {
+    const eq = p.indexOf('=');
+    if (eq < 0) continue;
+    params.set(p.slice(0, eq).toUpperCase(), p.slice(eq + 1));
+  }
+  return { name: (namePart ?? '').toUpperCase(), params, value: line.slice(idx + 1) };
+}
+
+// Desescapa un valor TEXT de iCalendar: \n y \N son salto de línea; \, \; \\ son el carácter literal.
+function unescapeIcsText(s: string): string {
+  let out = '';
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (c === '\\' && i + 1 < s.length) {
+      const next = s[++i];
+      out += next === 'n' || next === 'N' ? '\n' : next;
+    } else {
+      out += c;
+    }
+  }
+  return out;
+}
+
+function isValidDateParts(y: number, mo: number, d: number): boolean {
+  if (mo < 1 || mo > 12 || d < 1) return false;
+  return d <= new Date(Date.UTC(y, mo, 0)).getUTCDate();
+}
+
+function isValidTimeParts(hh: number, mi: number, ss: number): boolean {
+  return hh <= 23 && mi <= 59 && ss <= 60; // 60: segundo intercalar
+}
+
+// DTSTART/DTEND: fecha sola (VALUE=DATE), UTC ("...Z"), con TZID, o "flotante" (sin zona).
+function parseIcsDate(value: string, params: Map<string, string>): EventTime | undefined {
+  const v = value.trim();
+  if (params.get('VALUE') === 'DATE' || /^\d{8}$/.test(v)) {
+    const m = /^(\d{4})(\d{2})(\d{2})$/.exec(v);
+    if (!m) return undefined;
+    const [, y, mo, d] = m as unknown as [string, string, string, string];
+    if (!isValidDateParts(Number(y), Number(mo), Number(d))) return undefined;
+    return { iso: `${y}-${mo}-${d}`, allDay: true, tz: '' };
+  }
+  const mUtc = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z$/.exec(v);
+  if (mUtc) {
+    const [, y, mo, d, hh, mi, ss] = mUtc as unknown as [string, string, string, string, string, string, string];
+    if (!isValidDateParts(Number(y), Number(mo), Number(d)) || !isValidTimeParts(Number(hh), Number(mi), Number(ss))) return undefined;
+    return { iso: `${y}-${mo}-${d}T${hh}:${mi}:${ss}Z`, allDay: false, tz: 'UTC' };
+  }
+  const mLocal = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})$/.exec(v);
+  if (mLocal) {
+    const [, y, mo, d, hh, mi, ss] = mLocal as unknown as [string, string, string, string, string, string, string];
+    if (!isValidDateParts(Number(y), Number(mo), Number(d)) || !isValidTimeParts(Number(hh), Number(mi), Number(ss))) return undefined;
+    return { iso: `${y}-${mo}-${d}T${hh}:${mi}:${ss}`, allDay: false, tz: params.get('TZID') ?? '' };
+  }
+  return undefined;
+}
+
+// Envuelve un VEVENT suelto (sin VCALENDAR) para poder ofrecerlo como .ics descargable.
+function wrapIcs(vevent: string): string {
+  const body = vevent.replace(/\r\n|\r|\n/g, '\r\n').trim();
+  return `BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//Mirilla//ES\r\n${body}\r\nEND:VCALENDAR`;
+}
+
+function parseEvent(text: string): Parsed | null {
+  // Desplegado de líneas (RFC 5545 §3.1): un salto de línea seguido de espacio o tabulador
+  // continúa la línea anterior; se quitan ambos (el salto y ese espacio/tab).
+  const unfolded = text.replace(/\r\n|\r|\n/g, '\n').replace(/\n[ \t]/g, '');
+  const lines = unfolded.split('\n');
+  const start = lines.findIndex((l) => /^BEGIN:VEVENT$/i.test(l.trim()));
+  if (start < 0) return null;
+  const end = lines.findIndex((l, i) => i > start && /^END:VEVENT$/i.test(l.trim()));
+  if (end < 0) return null;
+
+  let title = '';
+  let location = '';
+  let description = '';
+  let dtstart: EventTime | undefined;
+  let dtend: EventTime | undefined;
+  for (const raw of lines.slice(start + 1, end)) {
+    const prop = parseIcsLine(raw);
+    if (!prop) continue;
+    switch (prop.name) {
+      case 'SUMMARY':
+        title = unescapeIcsText(prop.value);
+        break;
+      case 'LOCATION':
+        location = unescapeIcsText(prop.value);
+        break;
+      case 'DESCRIPTION':
+        description = unescapeIcsText(prop.value);
+        break;
+      case 'DTSTART':
+        dtstart = parseIcsDate(prop.value, prop.params);
+        break;
+      case 'DTEND':
+        dtend = parseIcsDate(prop.value, prop.params);
+        break;
+      default:
+        break;
+    }
+  }
+
+  const isBareVevent = /^begin:vevent/i.test(text.trim());
+  return {
+    kind: 'event',
+    title,
+    location,
+    description,
+    start: dtstart,
+    end: dtend,
+    ics: isBareVevent ? wrapIcs(text) : text,
+  };
+}
+
+// --- OTP (otpauth://, Google Authenticator "Key URI Format") ------------------------------------
+
+function parseOtp(text: string): Parsed | null {
+  let url: URL;
+  try {
+    url = new URL(text);
+  } catch {
+    return null;
+  }
+  const type = url.host.toLowerCase();
+  if (type !== 'totp' && type !== 'hotp') return null;
+  const secretRaw = url.searchParams.get('secret');
+  if (!secretRaw) return null;
+  const secret = secretRaw.toUpperCase().replace(/\s+/g, '');
+
+  const label = safeDecode(url.pathname.replace(/^\/+/, ''));
+  const sep = label.indexOf(':');
+  let issuer = sep < 0 ? '' : label.slice(0, sep).trim();
+  const account = sep < 0 ? label : label.slice(sep + 1).trim();
+  issuer = url.searchParams.get('issuer') || issuer;
+
+  const algorithm = (url.searchParams.get('algorithm') || 'SHA1').toUpperCase();
+  const digits = Number(url.searchParams.get('digits')) || 6;
+  const period = Number(url.searchParams.get('period')) || 30;
+  const counterParam = url.searchParams.get('counter');
+
+  return {
+    kind: 'otp',
+    type,
+    issuer,
+    account,
+    secret,
+    algorithm,
+    digits,
+    period,
+    counter: type === 'hotp' ? Number(counterParam ?? 0) : undefined,
+  };
+}
+
+// --- Criptomonedas (BIP 21 Bitcoin, Lightning, EIP-681 Ethereum) --------------------------------
+
+function parseBitcoin(text: string): Parsed | null {
+  const rest = text.slice('bitcoin:'.length);
+  const q = rest.indexOf('?');
+  const address = (q < 0 ? rest : rest.slice(0, q)).trim();
+  if (!address) return null;
+  const params = queryParams(q < 0 ? '' : rest.slice(q + 1));
+  return {
+    kind: 'crypto',
+    coin: 'bitcoin',
+    address,
+    addressValid: isValidBitcoinAddress(address),
+    amount: params.get('amount') ?? '',
+    label: params.get('label') ?? '',
+    message: params.get('message') ?? '',
+  };
+}
+
+// EIP-681: "ethereum:[pay-]0xDIRECCION[@chainId][/function]?value=...". No interpretamos llamadas
+// a funciones (tokens ERC-20 etc.), solo el pago directo en ether.
+function parseEthereum(text: string): Parsed | null {
+  const rest = text.slice('ethereum:'.length);
+  const m = /^(?:pay-)?(0x[0-9a-fA-F]+)(?:@\d+)?(?:\/[^?]*)?(?:\?(.*))?$/.exec(rest);
+  if (!m) return null;
+  const address = m[1] ?? '';
+  const params = queryParams(m[2] ?? '');
+  return {
+    kind: 'crypto',
+    coin: 'ethereum',
+    address,
+    addressValid: isEthereumAddressFormat(address),
+    amount: params.get('value') ?? '',
+    label: '',
+    message: '',
   };
 }
 

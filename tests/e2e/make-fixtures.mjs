@@ -24,6 +24,13 @@ const codes = {
   'qr-http.png': ['http://example.com/', { format: 'QRCode', scale: 6 }],
   'qr-utm.png': ['https://example.com/promo?utm_source=qr&id=7&fbclid=abc', { format: 'QRCode', scale: 6 }],
   'qr-bidi.png': ['https://evil.example/\u202Emoc.lapyap.www//:sptth', { format: 'QRCode', scale: 6 }],
+  'qr-event.png': [
+    'BEGIN:VEVENT\nSUMMARY:Reuni\u00F3n de equipo\nDTSTART;TZID=Europe/Madrid:20261015T100000\nDTEND;TZID=Europe/Madrid:20261015T110000\nLOCATION:Sala 2\nDESCRIPTION:Orden del d\u00EDa en https://example.com/acta\nEND:VEVENT',
+    { format: 'QRCode', scale: 5 },
+  ],
+  'qr-otp.png': ['otpauth://totp/Ejemplo:ana@example.com?secret=JBSWY3DPEHPK3PXP&issuer=Ejemplo', { format: 'QRCode', scale: 5 }],
+  'qr-bitcoin.png': ['bitcoin:1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2?amount=0.01&label=Donativo', { format: 'QRCode', scale: 5 }],
+  'qr-bitcoin-bad.png': ['bitcoin:1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN3?amount=0.01&label=Donativo', { format: 'QRCode', scale: 5 }],
 };
 for (const [name, [text, opts]] of Object.entries(codes)) {
   const { image, error } = await writeBarcode(text, opts);
