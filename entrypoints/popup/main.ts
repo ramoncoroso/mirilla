@@ -7,7 +7,8 @@ import { t } from '@/lib/i18n';
 import type { MessageKey } from '@/locales/messages';
 import { getHistory, isHistoryEnabled } from '@/lib/history';
 import type { FromPopup } from '@/lib/messages';
-import { copyText, el, renderCodes, RESULT_CSS, THEME_CSS, THEME_DARK_CSS } from '@/lib/render';
+import { decodePdf, isPdf, MAX_PDF_PAGES, PdfTooLargeError } from '@/lib/pdf';
+import { copyText, el, renderCodes, renderPdfPages, RESULT_CSS, THEME_CSS, THEME_DARK_CSS } from '@/lib/render';
 import { revealHidden } from '@/lib/unicode';
 import { analyzeUrl } from '@/lib/url-safety';
 
@@ -68,6 +69,25 @@ async function activeTab() {
   if (forced) return browser.tabs.get(Number(forced));
   const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
   return tab;
+}
+
+/** Un PDF elegido o arrastrado en el popup: todas sus páginas, con los resultados por página. */
+async function decodePdfAndShow(file: File) {
+  clearResults();
+  try {
+    const result = await decodePdf(file, (page, total) => setStatus(t('pdfReading', page, total)));
+    const codes = result.pages.flatMap((p) => p.codes);
+    setStatus(codes.length === 0 ? t('pdfNoCodes') : result.truncated ? t('pdfTruncated', MAX_PDF_PAGES, result.total) : null);
+    if (codes.length === 0) return;
+    const base = await loadContextData().catch(() => undefined);
+    const ctx = base && toAssessContext(await withListed(base, codes));
+    results.append(renderPdfPages(result.pages, actions, ctx));
+    await saveToHistory(codes, '');
+    void renderHistory();
+  } catch (e) {
+    console.error(e);
+    setStatus(t(e instanceof PdfTooLargeError ? 'pdfTooLarge' : 'pdfError'));
+  }
 }
 
 async function decodeAndShow(blob: Blob, source: string) {
@@ -172,7 +192,8 @@ const drop = $('drop');
 const file = $<HTMLInputElement>('file');
 
 file.addEventListener('change', () => {
-  if (file.files?.[0]) void decodeAndShow(file.files[0], '');
+  const chosen = file.files?.[0];
+  if (chosen) void (isPdf(chosen) ? decodePdfAndShow(chosen) : decodeAndShow(chosen, ''));
   file.value = '';
 });
 drop.addEventListener('keydown', (e) => {
@@ -189,8 +210,8 @@ drop.addEventListener('dragleave', () => drop.classList.remove('over'));
 drop.addEventListener('drop', (e) => {
   e.preventDefault();
   drop.classList.remove('over');
-  const f = Array.from(e.dataTransfer?.files ?? []).find((f) => f.type.startsWith('image/'));
-  if (f) void decodeAndShow(f, '');
+  const f = Array.from(e.dataTransfer?.files ?? []).find((f) => f.type.startsWith('image/') || isPdf(f));
+  if (f) void (isPdf(f) ? decodePdfAndShow(f) : decodeAndShow(f, ''));
 });
 document.addEventListener('paste', (e) => {
   const item = Array.from(e.clipboardData?.items ?? []).find((i) => i.type.startsWith('image/'));

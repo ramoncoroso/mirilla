@@ -2,7 +2,7 @@
 
 **English** · [Español](PRIVACY.es.md)
 
-_Last updated: 3 October 2026 (rev. 3)_
+_Last updated: 3 October 2026 (rev. 4)_
 
 Mirilla is a browser extension that reads QR codes and barcodes. It is built so that
 **no data ever leaves your device**.
@@ -52,13 +52,17 @@ Mirilla is a browser extension that reads QR codes and barcodes. It is built so 
 Mirilla does not request access to all websites. It only acts on the current tab, and only
 after you ask it to.
 
-## Camera and screen
+## Camera, screen and PDF files
 
 If you choose "Scan with the camera" or "Scan the screen or another window", your browser asks for
 permission at that moment (Mirilla has no camera or screen permissions in its manifest). The image is
 read on your device, frame by frame: it is not recorded, no frame is saved and nothing is sent anywhere.
 The camera or capture stops as soon as a code is read, when you press "Stop" or when you close the tab
 (the camera, also when the tab is hidden).
+
+A PDF file you open or drop in the popup or the scan page is read on your device with pdf.js, included
+in the extension: it is not uploaded anywhere and not saved, any JavaScript inside the PDF is never run,
+and only the codes found in it go to the history, like any other reading.
 
 ## Public phishing list
 

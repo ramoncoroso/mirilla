@@ -12,6 +12,7 @@ export type Command =
   | { op: 'getStorage'; key: string }
   | { op: 'openScan'; mode: string }
   | { op: 'closeTab'; tabId: number }
+  | { op: 'pdf'; url: string }
   | { op: 'tabIdByUrl'; url: string }
   | { op: 'activate'; tabId: number }
   | { op: 'setZoom'; tabId: number; zoom: number }
@@ -37,6 +38,12 @@ export async function run(cmd: Command, api: TestApi): Promise<unknown> {
       return browser.storage.local.set(cmd.items);
     case 'getStorage':
       return (await browser.storage.local.get(cmd.key))[cmd.key] ?? null;
+    case 'pdf': {
+      // pdf.js con la CSP real de la extensión: descarga el PDF de la web de pruebas y lee sus páginas.
+      const { decodePdf } = await import('./pdf');
+      const result = await decodePdf(await (await fetch(cmd.url)).blob());
+      return result.pages.map((p) => [p.page, p.codes.map((c) => c.text)]);
+    }
     case 'closeTab':
       return browser.tabs.remove(cmd.tabId);
     case 'openScan':

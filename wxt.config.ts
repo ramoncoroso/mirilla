@@ -1,4 +1,6 @@
+import { readdirSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import path from 'node:path';
 import { defineConfig } from 'wxt';
 import { locales, toMessagesJson } from './locales/messages';
 
@@ -24,6 +26,15 @@ export default defineConfig({
     'build:publicAssets': (_wxt, files) => {
       files.push({ absoluteSrc: require.resolve('zxing-wasm/reader/zxing_reader.wasm'), relativeDest: 'zxing_reader.wasm' });
       files.push({ absoluteSrc: require.resolve('zxing-wasm/writer/zxing_writer.wasm'), relativeDest: 'zxing_writer.wasm' });
+      // pdf.js (Apache-2.0): el worker y los decodificadores wasm de imágenes, con sus licencias. La parte principal
+      // la empaqueta Vite en la página que lo usa.
+      const pdfjs = path.dirname(require.resolve('pdfjs-dist/package.json'));
+      files.push({ absoluteSrc: path.join(pdfjs, 'build/pdf.worker.min.mjs'), relativeDest: 'pdfjs/pdf.worker.min.mjs' });
+      files.push({ absoluteSrc: path.join(pdfjs, 'LICENSE'), relativeDest: 'pdfjs/LICENSE' });
+      for (const f of readdirSync(path.join(pdfjs, 'wasm'))) {
+        // Sin quickjs-eval.wasm: es el motor que ejecuta el JavaScript de los PDF, y Mirilla nunca lo ejecuta.
+        if ((f.endsWith('.wasm') && !f.startsWith('quickjs')) || f.startsWith('LICENSE')) files.push({ absoluteSrc: path.join(pdfjs, 'wasm', f), relativeDest: `pdfjs/wasm/${f}` });
+      }
       // Traducciones: se generan desde locales/messages.ts.
       for (const [lang, messages] of Object.entries(locales)) {
         files.push({ contents: toMessagesJson(messages), relativeDest: `_locales/${lang}/messages.json` });

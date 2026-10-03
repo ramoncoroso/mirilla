@@ -26,6 +26,22 @@ export function renderCodes(codes: Code[], actions: RenderActions, ctx: AssessCo
   return list;
 }
 
+/**
+ * Resultados de un PDF, por página: las páginas con algo peligroso, primero (luego Precaución), y dentro de cada
+ * grupo, en orden de página.
+ */
+export function renderPdfPages(pages: { page: number; codes: Code[] }[], actions: RenderActions, ctx: AssessContext = DEFAULT_CONTEXT): HTMLElement {
+  const rank = (codes: Code[]) => ['danger', 'caution'].indexOf(worst(...codes.map((c) => assess(c, ctx).verdict))) >>> 0;
+  const list = el('div', 'qr-pdf');
+  for (const { page, codes } of [...pages].sort((a, b) => rank(a.codes) - rank(b.codes) || a.page - b.page)) {
+    const section = el('section', 'qr-pdf-page');
+    section.dataset.page = String(page);
+    section.append(el('h3', 'qr-pdf-title', t('pdfPage', page)), renderCodes(codes, actions, ctx));
+    list.append(section);
+  }
+  return list;
+}
+
 export function renderCode(code: Code, actions: RenderActions, ctx: AssessContext = DEFAULT_CONTEXT): HTMLElement {
   const parsed = parseCode(code);
   const assessment = assess(code, ctx, parsed);
@@ -498,6 +514,8 @@ export const RESULT_CSS = `
 .qr-verdict-trusted { background: var(--qr-ok-bg); color: var(--qr-ok-fg); }
 .qr-investigate { margin-top: 8px; }
 .qr-investigate .qr-note { margin-top: 2px; }
+.qr-pdf { display: flex; flex-direction: column; gap: 14px; }
+.qr-pdf-title { font-size: 13px; margin: 0 0 6px; color: var(--qr-muted); }
 .qr-more { margin: 4px 0; font-size: 12px; }
 .qr-more summary { cursor: pointer; color: var(--qr-muted); }
 .qr-embedded { margin-top: 8px; padding-top: 6px; border-top: 1px dashed var(--qr-border); }

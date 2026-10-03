@@ -35,6 +35,7 @@
     "wxt": "^0.21.4"
   },
   "dependencies": {
+    "pdfjs-dist": "^6.4.299",
     "tldts": "^7.4.16",
     "zxing-wasm": "^3.1.4"
   },

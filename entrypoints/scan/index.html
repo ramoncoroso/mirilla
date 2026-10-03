@@ -13,7 +13,11 @@
       <div class="sources">
         <button id="camera" class="qr-btn big" type="button" data-i18n="scanCamera"></button>
         <button id="screen" class="qr-btn big" type="button" data-i18n="scanScreen"></button>
+        <label id="pdf" class="qr-btn big" tabindex="0" role="button">
+          <input id="pdf-file" type="file" accept="application/pdf,.pdf" hidden /> <span data-i18n="scanPdf"></span>
+        </label>
       </div>
+      <p class="help" data-i18n="scanPdfHelp"></p>
       <p class="help" data-i18n="scanPrivacy"></p>
 
       <section id="live" hidden>

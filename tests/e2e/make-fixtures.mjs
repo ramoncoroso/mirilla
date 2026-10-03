@@ -37,3 +37,49 @@ const { svg, error } = await writeBarcode('https://example.org/svg', { format: '
 if (error) throw new Error(`qr.svg: ${error}`);
 await writeFile(new URL('qr.svg', dir), svg);
 console.log('ok', 'qr.svg');
+
+// PDF de tres páginas (como el adjunto de un email de quishing): la 1 sin códigos, la 2 con el QR peligroso y la
+// 3 con uno normal. El QR se dibuja como vectores (rectángulos), como lo hacen los generadores de PDF.
+async function qrRects(text) {
+  const { svg, error } = await writeBarcode(text, { format: 'QRCode' });
+  if (error) throw new Error(error);
+  const modules = Number(/<svg width="(\d+)"/.exec(svg)[1]);
+  // Los módulos negros van en un path de rectángulos «Mx yhWvHh-WZ» (el <rect> es el fondo blanco).
+  const rects = [...svg.matchAll(/M([\d.]+) ([\d.]+)h([\d.]+)v([\d.]+)h-[\d.]+Z/g)].map((m) => m.slice(1).map(Number));
+  return { rects, modules };
+}
+
+function pdf(pages) {
+  // pages: contenido (operadores PDF) de cada página A4 (595×842 pt).
+  const objects = ['<< /Type /Catalog /Pages 2 0 R >>', ''];
+  const kids = [];
+  for (const content of pages) {
+    const streamId = objects.length + 2;
+    kids.push(`${objects.length + 1} 0 R`);
+    objects.push(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents ${streamId} 0 R >>`);
+    objects.push(`<< /Length ${Buffer.byteLength(content)} >>\nstream\n${content}\nendstream`);
+  }
+  objects[1] = `<< /Type /Pages /Kids [${kids.join(' ')}] /Count ${pages.length} >>`;
+  let out = '%PDF-1.4\n';
+  const offsets = objects.map((body, i) => {
+    const at = Buffer.byteLength(out);
+    out += `${i + 1} 0 obj\n${body}\nendobj\n`;
+    return at;
+  });
+  const xref = Buffer.byteLength(out);
+  out += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n${offsets.map((o) => `${String(o).padStart(10, '0')} 00000 n \n`).join('')}`;
+  out += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
+  return out;
+}
+
+const qrPage = ({ rects, modules }, size = 200, x = 200, y = 400) => {
+  const scale = size / modules;
+  // El QR, en negro, con el origen arriba a la izquierda (el SVG) convertido al de PDF (abajo a la izquierda).
+  return `0 g\n${rects.map(([rx, ry, w, h]) => `${(x + rx * scale).toFixed(2)} ${(y + size - (ry + h) * scale).toFixed(2)} ${(w * scale).toFixed(2)} ${(h * scale).toFixed(2)} re`).join('\n')}\nf`;
+};
+const textPage = '0.6 g\n60 700 475 12 re f\n60 670 400 12 re f\n60 640 440 12 re f';
+await writeFile(
+  new URL('quishing.pdf', dir),
+  pdf([textPage, qrPage(await qrRects('https://www.paypal.com@evil.example/login')), qrPage(await qrRects('https://example.com/'))]),
+);
+console.log('ok', 'quishing.pdf');

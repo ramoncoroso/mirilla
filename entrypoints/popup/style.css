@@ -12,6 +12,7 @@ kbd:empty { display: none; }
   display: block; padding: 14px; text-align: center; border: 1.5px dashed var(--qr-border); border-radius: 10px;
   color: var(--qr-muted); cursor: pointer;
 }
+.drop-note { display: block; font-size: 11px; margin-top: 2px; }
 .drop:hover, .drop:focus, .drop.over { border-color: var(--qr-accent); color: var(--qr-fg); outline: none; }
 .status { margin: 0; color: var(--qr-muted); }
 .notice { padding: 8px 10px; border-radius: 8px; background: var(--qr-info-bg); color: var(--qr-info-fg); }

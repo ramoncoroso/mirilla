@@ -19,6 +19,32 @@ locator for its .wasm file. It is never used: the extension fetches the bundled 
 it to zxing as bytes (overrides.wasmBinary in lib/decode.ts and lib/generate.ts), so zxing never
 resolves a URL on its own. Nothing is loaded from any CDN.
 
+PDF reading: pdf.js is used to read QR codes inside PDF files (email attachments are the most common
+quishing vector) entirely on the user's device, in lib/pdf.ts. The files below are copied unmodified
+from the npm package pdfjs-dist@6.4.299 (Apache-2.0; https://github.com/mozilla/pdf.js).
+quickjs-eval.wasm, the engine pdf.js uses to run JavaScript embedded in a PDF, is deliberately not
+shipped: Mirilla never executes a PDF's JavaScript. The main pdf.js module is not copied as a separate
+file: Vite bundles it into the extension's own code, as chunks/pdf-*.js.
+SHA-256:
+  pdf.worker.min.mjs  9536359f1b8367850d485731ca1d5e45c159a7b7a0912325e539937aa21ceb18  (= node_modules/pdfjs-dist/build/pdf.worker.min.mjs)
+  wasm/jbig2.wasm  466f45c2a61a698152fb5400c27e56ff2ceb73dcb71fde3fc366a502308eaab0  (= node_modules/pdfjs-dist/wasm/jbig2.wasm)
+  wasm/openjpeg.wasm  95e5002597af0824004aa57b1900fe019715db389e37640b1e58395e42f00cc5  (= node_modules/pdfjs-dist/wasm/openjpeg.wasm)
+  wasm/qcms_bg.wasm  663d86126d5f5fcb1c61490f94353e2a8375660b8c5498ab3ebab5a34b08800e  (= node_modules/pdfjs-dist/wasm/qcms_bg.wasm)
+
+web-ext lint reports two UNSAFE_VAR_ASSIGNMENT warnings ("Unsafe call to import for argument 0"), both
+coming from pdf.js's own code, not from Mirilla:
+- chunks/pdf-*.js: pdf.js's fake-worker fallback runs `import(this.workerSrc)` when no Worker is
+  available; lib/pdf.ts sets workerSrc to the packaged pdfjs/pdf.worker.min.mjs with runtime.getURL, so
+  this can only ever import a file inside the extension package.
+- pdfjs/pdf.worker.min.mjs: its WasmImage fallback runs `import(wasmUrl + noWasmFilename)` when a .wasm
+  decoder fails to load; lib/pdf.ts sets wasmUrl to the packaged pdfjs/wasm/ directory with
+  runtime.getURL. The *_nowasm_fallback.js files it would try to load are not part of the package (see
+  above), so in practice this import can only fail and log a warning; it is not reached in normal use.
+Neither dynamic import can ever load anything outside the extension package: both arguments are always
+built from runtime.getURL() over files bundled in this zip, and the extension's own
+content_security_policy (extension_pages: "script-src 'self' 'wasm-unsafe-eval'") forbids loading
+remote script in any case.
+
 Permissions: activeTab, contextMenus, scripting, storage. No host permissions and no remote code.
 Network: only fetching an image the user right-clicks (to decode it), and opening a link only
 when the user clicks "Open". No analytics, no data collection.

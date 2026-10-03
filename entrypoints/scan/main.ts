@@ -9,7 +9,8 @@ import { decodeImageData, type Code } from '@/lib/decode';
 import { t } from '@/lib/i18n';
 import type { FromPopup } from '@/lib/messages';
 import { domainAge } from '@/lib/rdap';
-import { copyText, renderCodes, RESULT_CSS, THEME_CSS, THEME_DARK_CSS } from '@/lib/render';
+import { decodePdf, isPdf, MAX_PDF_PAGES, PdfTooLargeError } from '@/lib/pdf';
+import { copyText, el, renderCodes, renderPdfPages, RESULT_CSS, THEME_CSS, THEME_DARK_CSS } from '@/lib/render';
 import { analyzeUrl } from '@/lib/url-safety';
 import type { MessageKey } from '@/locales/messages';
 
@@ -115,6 +116,28 @@ async function show(codes: Code[]) {
   }
 }
 
+/** Un PDF: todas sus páginas, en local; los resultados por página, los peligrosos primero. */
+async function readPdf(file: File) {
+  stop();
+  results.replaceChildren();
+  try {
+    const result = await decodePdf(file, (page, total) => setStatus(t('pdfReading', page, total)));
+    const codes = result.pages.flatMap((p) => p.codes);
+    setStatus(codes.length === 0 ? t('pdfNoCodes') : null);
+    if (result.truncated) results.append(el('p', 'status', t('pdfTruncated', MAX_PDF_PAGES, result.total)));
+    if (codes.length === 0) return;
+    const base = await loadContextData().catch(() => undefined);
+    const ctx = base && toAssessContext(await withListed(base, codes));
+    results.append(renderPdfPages(result.pages, actions, ctx));
+    if (!browser.extension.inIncognitoContext) {
+      await browser.runtime.sendMessage({ type: 'history-add', codes, pageUrl: '' } satisfies FromPopup).catch(() => {});
+    }
+  } catch (e) {
+    console.error(e);
+    setStatus(t(e instanceof PdfTooLargeError ? 'pdfTooLarge' : 'pdfError'));
+  }
+}
+
 async function fillCameras(current?: string) {
   const cameras = (await navigator.mediaDevices.enumerateDevices()).filter((d) => d.kind === 'videoinput');
   cameraSelect.replaceChildren(
@@ -157,6 +180,29 @@ async function startScreen() {
 $('camera').addEventListener('click', () => void startCamera());
 $('screen').addEventListener('click', () => void startScreen());
 $('stop').addEventListener('click', stop);
+const pdfFile = $<HTMLInputElement>('pdf-file');
+pdfFile.addEventListener('change', () => {
+  if (pdfFile.files?.[0]) void readPdf(pdfFile.files[0]);
+  pdfFile.value = '';
+});
+$('pdf').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' || e.key === ' ') {
+    e.preventDefault();
+    pdfFile.click();
+  }
+});
+// Arrastrar un PDF a cualquier parte de la página.
+document.addEventListener('dragover', (e) => {
+  e.preventDefault();
+  document.body.classList.add('over');
+});
+document.addEventListener('dragleave', () => document.body.classList.remove('over'));
+document.addEventListener('drop', (e) => {
+  e.preventDefault();
+  document.body.classList.remove('over');
+  const file = Array.from(e.dataTransfer?.files ?? []).find((f) => isPdf(f));
+  if (file) void readPdf(file);
+});
 cameraSelect.addEventListener('change', () => void startCamera(cameraSelect.value));
 // La cámara no se queda encendida en una pestaña oculta. La pantalla sí (se suele compartir otra ventana).
 document.addEventListener('visibilitychange', () => {
@@ -168,3 +214,4 @@ window.addEventListener('pagehide', stop);
 const mode = new URLSearchParams(location.search).get('mode');
 if (mode === 'camera') void startCamera();
 else if (mode === 'screen') $('screen').focus();
+else if (mode === 'pdf') $('pdf').focus();
