@@ -216,14 +216,16 @@ descarga periódicamente una lista completa y compara en el equipo, como Safe Br
   comprobaciones de «Investigar más».
 
 **Medir para no equivocarse** (datos solo en los tests, nunca en la extensión)
-- [ ] **Falsos positivos**: las ~10.000 primeras webs de **Tranco**, descargadas al ejecutar el test (sus fuentes incluyen
+- [x] **Falsos positivos** (*hecho 2026-10-03*: `npm run measure`, `tests/measure/`; 6 en Peligro, los revisados, y 13 en Precaución): las ~10.000 primeras webs de **Tranco**, descargadas al ejecutar el test (sus fuentes incluyen
   licencias no comerciales: no se guardan en el repo ni en el paquete). Objetivo: ninguna en Peligro y muy pocas en
   Precaución; revisar una a una las que salgan.
-- [ ] **Detección**: muestras fijas de **URLhaus** (CC0) y **Phishing.Database** (MIT) guardadas en el repo con su licencia;
+- [x] **Detección** (*hecho 2026-10-03* solo con Phishing.Database: 1.000 URLs, 30,7 % detectado, 5,7 % en Peligro). **URLhaus no**:
+  sus condiciones actuales (abuse.ch/Spamhaus) piden cuenta, uso sin ánimo de lucro y prohíben obras derivadas sin permiso;
+  ya no es CC0. **Decidir con el usuario** antes de usarlo en «Listas públicas». Plan original: muestras fijas de **URLhaus** (CC0) y **Phishing.Database** (MIT) guardadas en el repo con su licencia;
   informe del porcentaje detectado por veredicto. Expectativa realista: las heurísticas no ven un dominio malicioso «limpio»
   sin señales; el objetivo es no dejar pasar ninguno con señales claras.
-- [ ] Descartado: OpenPhish (sus condiciones prohíben usarlo para desarrollar productos o para detección).
-- [ ] Sin listas negras fijas dentro del paquete (caducan en días y engordan el paquete): ver «Listas públicas» abajo.
+- [x] Descartado: OpenPhish (sus condiciones prohíben usarlo para desarrollar productos o para detección).
+- [x] Sin listas negras fijas dentro del paquete (caducan en días y engordan el paquete): ver «Listas públicas» abajo.
 
 #### 4.1 Página de escaneo: cámara, pantalla y PDF — tamaño L
 - [ ] Nueva página de la extensión `scan.html`, abierta en **su propia pestaña** desde el popup («Escanear con la cámara»,
