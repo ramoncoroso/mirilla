@@ -119,7 +119,7 @@ función con prueba en Chromium y, si aplica, en Firefox; y revisión de segurid
 
 **Orden** (cada hito se cierra con tests en verde, commit y push). Empieza por 4.0, el sistema de avisos:
 
-#### 4.0 Sistema de avisos: detectar más y avisar mejor — tamaño L (**primero**: es el núcleo de Mirilla)
+#### 4.0 Sistema de avisos: detectar más y avisar mejor — tamaño L ✅ (2026-10-03)
 Decidido por el usuario (2026-09-27). Todo en local: nada se consulta a servicios externos.
 
 **Detectar más engaños**
@@ -202,19 +202,19 @@ descarga periódicamente una lista completa y compara en el equipo, como Safe Br
   falsos positivos, rendimiento de la búsqueda.
 
 **«Investigar más»: comprobaciones online solo a petición**
-- [ ] Botón en el resultado, que explica antes qué servicio se contacta:
+- [x] Botón en el resultado, que explica antes qué servicio se contacta:
   - **antigüedad del dominio** por RDAP (registro público; ve el dominio, no la URL ni quién eres): un dominio de pocos
     días es una señal muy fuerte de fraude; *hecho 2026-10-03* (`lib/rdap.ts`): directo al registro según la lista de IANA
     (sin rdap.org), sin permisos (CORS); menos de 30 días → aviso y el veredicto sube a Precaución. .es y .eu no tienen RDAP;
   - ~~**destino de un acortador**~~ — **descartado** (decidido 2026-10-03): leer la redirección sin visitar la página exige
     ver la cabecera `Location`, que `fetch` oculta incluso con permiso de host; haría falta `webRequest` + permisos
     opcionales pedidos desde el popup. El acortador ya sale como Precaución.
-- [ ] Nunca se visita la página para analizarla (avisaría al atacante y le daría la IP del usuario).
+- [x] Nunca se visita la página para analizarla (avisaría al atacante y le daría la IP del usuario).
 
 **Honestidad sobre los límites**
-- [ ] En las fichas, la ayuda y la política de privacidad (*política hecha 2026-10-03*; fichas y ayuda, en 4.9): «Mirilla analiza la dirección, no la página. Ninguna herramienta
+- [x] En las fichas, el README y la política de privacidad (*hecho 2026-10-03*): «Mirilla analiza la dirección, no la página. Ninguna herramienta
   puede garantizar que un sitio es seguro». Mencionar que el navegador (Safe Browsing) es una segunda red si se abre.
-- [ ] Política de privacidad actualizada: descarga periódica de la lista (qué se descarga, de dónde, qué no se envía) y
+- [x] Política de privacidad actualizada: descarga periódica de la lista (qué se descarga, de dónde, qué no se envía) y
   comprobaciones de «Investigar más» (*hecho 2026-10-03* lo de «Investigar más», denunciar, sitios de confianza y
   rastreadores; falta la lista, cuando exista).
 

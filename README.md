@@ -10,7 +10,7 @@ you when a link is trying to trick you (*quishing*). Everything runs inside your
 
 *Mirilla* is Spanish for the peephole in a door: you look before you open.
 
-Permissions: `activeTab`, `contextMenus`, `scripting` and `storage`. **No host permissions**:
+Permissions: `activeTab`, `alarms`, `contextMenus`, `scripting` and `storage`. **No host permissions**:
 the extension only touches the tab you use it on, and only when you invoke it.
 
 ## Features
@@ -20,7 +20,8 @@ the extension only touches the tab you use it on, and only when you invoke it.
 - **Scan visible area**: every code in the tab at once.
 - Paste (Ctrl+V), drop or pick an image in the popup.
 - Results by content type: link, Wi-Fi, contact (vCard/MECARD), email, phone, SMS, geo, SEPA payment (EPC).
-- Anti-quishing URL checks: dangerous schemes, `user@domain` tricks, punycode lookalikes, raw IPs, plain http, URL shorteners.
+- Anti-quishing: one verdict per code (Danger, Caution, No risk signals, Trusted site) from offline checks (impersonated brands, lookalike domains and homographs, `user@domain` tricks, hidden links, installers, USSD and premium numbers, open Wi-Fi…), your trusted sites and a signed public phishing list (Phishing.Database) downloaded every 6 h and compared locally. On demand: domain age via RDAP. Tracker removal and reporting.
+- Mirilla checks the address, not the page: it never says "safe".
 - Reads QR, Micro QR, Data Matrix, Aztec, PDF417, EAN/UPC, Code 128/39/93, ITF and more.
 - **GS1 aware**: interprets Application Identifiers (GTIN, SSCC, batch/lot, expiry and other dates, weights and measures, prices, GLNs...) in GS1 DataMatrix, GS1-128, GS1 QR and DataBar, and GS1 Digital Link URLs. Validates check digits, flags expired products and shows the GS1 prefix of EAN/UPC codes.
 - **QR code of the current page**, to download as PNG or copy as an image.

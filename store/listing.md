@@ -35,10 +35,15 @@ READ CODES ANYWHERE
 • Paste a screenshot (Ctrl+V), drop an image or pick a file
 
 STAY SAFE FROM QR PHISHING ("QUISHING")
-• The real domain of every link is highlighted
-• Warnings for tricks like "yourbank.com@evil.example", lookalike letters (punycode), raw IP addresses, unencrypted http and URL shorteners
-• Dangerous links (javascript:, data:…) are never opened
-• Nothing is ever opened automatically: you decide
+• One clear verdict for every code: Danger, Caution, No risk signals or Trusted site, with the real domain highlighted
+• Detects impersonated brands (banks, PayPal, couriers, tax agencies…), lookalike domains and letters, hidden links inside texts and SMS, app installers, USSD codes, premium-rate numbers and open Wi-Fi
+• Compares links with a public phishing list, downloaded whole and checked on your device: nobody learns what you scan
+• Add your trusted sites (your bank, your company): imitations of them are flagged as Danger
+• Optional "Investigate further": the domain's registration date, asked only when you click
+• Removes tracking parameters when you open or copy a link, and offers to report phishing
+• Dangerous links (javascript:, data:…) are never opened. Nothing is ever opened automatically: you decide
+
+Mirilla checks the address, not the page: no tool can guarantee that a site is safe, so Mirilla never says "safe". Your browser's own protection is a second safety net if you open a link.
 
 UNDERSTANDS WHAT IT READS
 • Links, Wi-Fi networks (copy the password), contacts, email, phone, SMS, locations and SEPA payment QR codes
@@ -53,7 +58,7 @@ AND ALSO
 • English and Spanish
 
 PRIVATE BY DESIGN
-Everything happens inside your browser. No servers, no accounts, no analytics, no ads. Mirilla does not ask for access to all websites: it only acts on the current tab, and only when you ask.
+Codes are read and checked inside your browser. No accounts, no analytics, no ads. Mirilla does not ask for access to all websites: it only acts on the current tab, and only when you ask.
 
 Free and open source (MIT): https://github.com/ramoncoroso/mirilla
 ```
@@ -72,10 +77,15 @@ LEE CÓDIGOS EN CUALQUIER SITIO
 • Pega una captura (Ctrl+V), arrastra una imagen o elige un fichero
 
 A SALVO DEL PHISHING CON QR («QUISHING»)
-• Se resalta el dominio real de cada enlace
-• Avisos ante trucos como «tubanco.com@malicioso.example», letras que imitan a otras (punycode), direcciones IP, http sin cifrar y acortadores
-• Los enlaces peligrosos (javascript:, data:…) nunca se abren
-• Nada se abre solo: decides tú
+• Un veredicto claro para cada código: Peligro, Precaución, Sin señales de riesgo o Sitio de confianza, con el dominio real resaltado
+• Detecta marcas suplantadas (bancos, PayPal, mensajerías, Hacienda…), dominios y letras que imitan a otros, enlaces escondidos en textos y SMS, instaladores de apps, códigos USSD, números de tarificación especial y WiFi abiertas
+• Compara los enlaces con una lista pública de phishing, descargada entera y comprobada en tu equipo: nadie sabe qué escaneas
+• Añade tus sitios de confianza (tu banco, tu empresa): sus imitaciones salen como Peligro
+• «Investigar más», opcional: la fecha de registro del dominio, solo si lo pulsas
+• Quita los parámetros de rastreo al abrir o copiar un enlace, y te ayuda a denunciar el phishing
+• Los enlaces peligrosos (javascript:, data:…) nunca se abren. Nada se abre solo: decides tú
+
+Mirilla analiza la dirección, no la página: ninguna herramienta puede garantizar que un sitio es seguro, por eso Mirilla nunca dice «seguro». Si abres un enlace, la protección de tu navegador es una segunda red de seguridad.
 
 ENTIENDE LO QUE LEE
 • Enlaces, redes WiFi (copia la contraseña), contactos, email, teléfono, SMS, ubicaciones y QR de pago SEPA
@@ -90,7 +100,7 @@ Y ADEMÁS
 • En castellano e inglés
 
 PRIVADA DESDE EL DISEÑO
-Todo ocurre dentro de tu navegador. Sin servidores, sin cuentas, sin analítica, sin anuncios. Mirilla no pide acceso a todas las webs: solo actúa sobre la pestaña actual y solo cuando se lo pides.
+Los códigos se leen y se analizan dentro de tu navegador. Sin cuentas, sin analítica, sin anuncios. Mirilla no pide acceso a todas las webs: solo actúa sobre la pestaña actual y solo cuando se lo pides.
 
 Libre y de código abierto (MIT): https://github.com/ramoncoroso/mirilla
 ```
@@ -107,7 +117,7 @@ Libre y de código abierto (MIT): https://github.com/ramoncoroso/mirilla
 
 **Single purpose**
 
-> Read QR codes and barcodes shown in web pages or images and display their content, with safety warnings for links, without sending any data off the device.
+> Read QR codes and barcodes shown in web pages or images and display their content, with safety warnings for links, without sending what is scanned off the device.
 
 **Permission justifications**
 
@@ -116,7 +126,8 @@ Libre y de código abierto (MIT): https://github.com/ramoncoroso/mirilla
 | `activeTab` | Used only after the user invokes the extension (toolbar popup, context menu or keyboard shortcut) to capture the visible area of the current tab and read the codes in it. No access to other tabs or sites. |
 | `contextMenus` | Adds "Read code from this image", "Select area to read a code" and "Scan visible area for codes" to the right-click menu. |
 | `scripting` | Injects, on demand, the area selector and the results panel into the current tab (the one granted by activeTab). |
-| `storage` | Stores the local history of reads (on by default, can be turned off; only the page origin; never from incognito windows) and its on/off setting in storage.local. Nothing is synced or sent. |
+| `storage` | Stores the local history of reads (on by default, can be turned off; only the page origin; never from incognito windows), the user's settings and trusted sites in storage.local. Nothing is synced or sent. |
+| `alarms` | Downloads the public phishing list every 6 hours from the extension's own GitHub Pages site, to compare links on the device. Nothing about the user is sent. |
 
 **Remote code**: No. All code, including the WebAssembly decoder, is inside the package.
 
