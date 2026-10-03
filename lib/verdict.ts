@@ -58,6 +58,7 @@ const WEIGHTS: Partial<Record<MessageKey, number>> = {
   urlSharedHosting: 1,
   urlPort: 1,
   urlPhishingWords: 1,
+  urlPhishingPath: 1,
   urlIdn: 1,
   urlBrandTld: 1,
   urlFirstVisit: 1,

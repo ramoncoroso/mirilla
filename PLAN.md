@@ -219,7 +219,8 @@ descarga periódicamente una lista completa y compara en el equipo, como Safe Br
 - [x] **Falsos positivos** (*hecho 2026-10-03*: `npm run measure`, `tests/measure/`; 6 en Peligro, los revisados, y 13 en Precaución): las ~10.000 primeras webs de **Tranco**, descargadas al ejecutar el test (sus fuentes incluyen
   licencias no comerciales: no se guardan en el repo ni en el paquete). Objetivo: ninguna en Peligro y muy pocas en
   Precaución; revisar una a una las que salgan.
-- [x] **Detección** (*hecho 2026-10-03* solo con Phishing.Database: 1.000 URLs, 30,7 % detectado, 5,7 % en Peligro). **URLhaus no**:
+- [x] **Detección** (*hecho 2026-10-03* solo con Phishing.Database: 1.000 URLs; 30,7 % detectado y, con las señales
+  nuevas `urlPhishingPath`, `urlCmsPath` y `urlDynamicHost`, 35,4 %; el resto son sobre todo dominios «limpios» sin ruta). **URLhaus no**:
   sus condiciones actuales (abuse.ch/Spamhaus) piden cuenta, uso sin ánimo de lucro y prohíben obras derivadas sin permiso;
   ya no es CC0. **Decidir con el usuario** antes de usarlo en «Listas públicas». Plan original: muestras fijas de **URLhaus** (CC0) y **Phishing.Database** (MIT) guardadas en el repo con su licencia;
   informe del porcentaje detectado por veredicto. Expectativa realista: las heurísticas no ven un dominio malicioso «limpio»

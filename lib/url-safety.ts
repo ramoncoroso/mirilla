@@ -5,6 +5,7 @@
 import { parse as parseDomain } from 'tldts';
 import type { MessageKey } from '@/locales/messages';
 import { DANGEROUS_EXTENSIONS, FILE_LIKE_TLDS, INSTALL_SCHEMES } from './data/file-types';
+import { DYNAMIC_HOSTS } from './data/hosting';
 import { findLookalike, idnInfo, references, type Lookalike, type Reference } from './lookalike';
 
 export type Level = 'danger' | 'warn' | 'info';
@@ -37,6 +38,10 @@ const SHORTENERS = new Set([
 const DANGEROUS_SCHEMES = new Set(['javascript:', 'data:', 'vbscript:', 'file:', 'blob:', 'filesystem:']);
 
 const PHISHING_WORDS = /(^|[.-])(login|signin|verify|secure|account|update|banking)([.-]|$)/;
+/** Las mismas en la ruta, como palabra (separadas por / . - _): «/login.php», «/verify-account/». */
+const PHISHING_PATH = /(^|[/._-])(log-?in|log-?on|sign-?in|verify|verification|account|update|banking|secure|confirm|webscr|password|unlock|suspended|billing|wallet)([/._-]|$)/;
+/** Una página (no una imagen ni un estilo) dentro de las carpetas internas de WordPress o de .well-known: web hackeada. */
+const CMS_PAGE = /\/(wp-content|wp-includes|\.well-known)\/(.+\/)?[^/]*(\.(php|html?|aspx?)|\/)$/;
 
 /**
  * Analiza una URL. `refs` son los sitios que se pueden imitar: las marcas de la lista y, si se pasan,
@@ -114,6 +119,18 @@ export function analyzeUrl(raw: string, refs: readonly Reference[] = references(
   if (PHISHING_WORDS.test(host)) {
     // Sola es una pista débil (login.microsoftonline.com es legítimo); suma en la puntuación (verdict.ts).
     findings.push({ level: 'info', message: 'urlPhishingWords' });
+  }
+  const path = decodeSafe(url.pathname).toLowerCase();
+  if (PHISHING_PATH.test(path)) {
+    // Aún más débil (github.com/login): solo suma si coincide con otras señales.
+    findings.push({ level: 'info', message: 'urlPhishingPath' });
+  }
+  if (CMS_PAGE.test(path)) {
+    findings.push({ level: 'warn', message: 'urlCmsPath' });
+  }
+  const dynamic = DYNAMIC_HOSTS.find((s) => host.endsWith(`.${s}`) && host !== `www.${s}`);
+  if (dynamic) {
+    findings.push({ level: 'warn', message: 'urlDynamicHost', args: [dynamic] });
   }
 
   return { openable: true, host, href: url.href, domain, ...(lookalike && { lookalike }), findings };
