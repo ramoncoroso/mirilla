@@ -2,7 +2,7 @@
 
 [English](PRIVACY.md) · **Español**
 
-_Última actualización: 27 de septiembre de 2026 (rev. 2)_
+_Última actualización: 3 de octubre de 2026 (rev. 3)_
 
 Mirilla es una extensión de navegador que lee códigos QR y de barras. Está hecha para que
 **ningún dato salga de tu equipo**.
@@ -14,7 +14,8 @@ Mirilla es una extensión de navegador que lee códigos QR y de barras. Está he
   entera dentro de tu navegador, con código WebAssembly incluido en la extensión.
 - La única petición de red que hace por su cuenta es volver a descargar una imagen sobre la que
   haces clic derecho («Leer código de esta imagen»), directamente del sitio que la sirve y sin
-  cookies, para leerla en local.
+  cookies, para leerla en local. Las demás (ver «Comprobaciones que solo se hacen si las pides»)
+  solo ocurren cuando pulsas un botón.
 - No tiene analítica, ni anuncios, ni rastreo, ni cuentas.
 - No carga código remoto.
 
@@ -27,6 +28,14 @@ Mirilla es una extensión de navegador que lee códigos QR y de barras. Está he
   guarda nada. Puedes desactivarlo o borrarlo cuando quieras desde el popup; al desactivarlo
   también se borra. Desinstalar la extensión también lo borra.
 - **Tu preferencia de historial** (activado/desactivado), también en almacenamiento local.
+- **Tus sitios de confianza**: los dominios que añades en los ajustes (por ejemplo, el de tu banco),
+  para avisarte si un código lleva a uno de ellos o a una imitación.
+- **Tu preferencia de limpiar rastreadores** (activada por defecto): al abrir o copiar un enlace se
+  le quitan los parámetros de seguimiento conocidos (`utm_*`, `fbclid`…).
+- **Una copia de la lista oficial de registros de dominios de IANA**, si usas «Investigar más»
+  (ver abajo), guardada una semana para no descargarla en cada consulta.
+- Para avisarte de que «nunca habías leído un enlace a este dominio», Mirilla compara con su propio
+  historial, en tu equipo. No pide acceso al historial del navegador.
 
 ## Permisos y para qué se usan
 
@@ -39,6 +48,26 @@ Mirilla es una extensión de navegador que lee códigos QR y de barras. Está he
 
 Mirilla no pide acceso a todas las webs. Solo actúa sobre la pestaña actual y solo después
 de que se lo pidas.
+
+## Comprobaciones que solo se hacen si las pides
+
+- **«Investigar más»** (antigüedad del dominio): Mirilla pregunta al registro público de dominios
+  (RDAP) cuándo se registró el dominio del enlace. Primero descarga de IANA
+  (`data.iana.org`) la lista oficial de registros y después pregunta directamente al registro de ese
+  dominio (por ejemplo, Verisign para los `.com`). Solo se envía el nombre del dominio
+  (`ejemplo.com`), nunca el enlace completo, y sin cookies. Como en cualquier conexión, ese registro
+  ve la dirección IP desde la que se pregunta. Nunca se visita la página del enlace.
+- **«Denunciar»**: copia el enlace al portapapeles y abre el formulario de denuncia de Google Safe
+  Browsing para que lo pegues; en castellano ofrece también un email ya redactado para el buzón de
+  incidentes de INCIBE. Nada se envía hasta que tú lo envías.
+
+## Lo que Mirilla puede y no puede saber
+
+Mirilla analiza la **dirección** de un enlace, no la página: no la visita, así que no conoce su
+contenido ni su reputación. Ninguna herramienta puede garantizar que un sitio es seguro, y por eso
+Mirilla nunca dice «seguro»: como mucho, «sin señales de riesgo», junto con el dominio real para que
+compruebes si es el que esperabas. Si abres el enlace, la protección de tu navegador (como Safe
+Browsing) es una segunda red de seguridad.
 
 ## Abrir enlaces
 

@@ -204,16 +204,18 @@ descarga periódicamente una lista completa y compara en el equipo, como Safe Br
 **«Investigar más»: comprobaciones online solo a petición**
 - [ ] Botón en el resultado, que explica antes qué servicio se contacta:
   - **antigüedad del dominio** por RDAP (registro público; ve el dominio, no la URL ni quién eres): un dominio de pocos
-    días es una señal muy fuerte de fraude;
+    días es una señal muy fuerte de fraude; *hecho 2026-10-03* (`lib/rdap.ts`): directo al registro según la lista de IANA
+    (sin rdap.org), sin permisos (CORS); menos de 30 días → aviso y el veredicto sube a Precaución. .es y .eu no tienen RDAP;
   - **destino de un acortador** (`bit.ly/…`), siguiendo solo la redirección sin abrir la página final (el acortador sabe
     que alguien lo consulta).
 - [ ] Nunca se visita la página para analizarla (avisaría al atacante y le daría la IP del usuario).
 
 **Honestidad sobre los límites**
-- [ ] En las fichas, la ayuda y la política de privacidad: «Mirilla analiza la dirección, no la página. Ninguna herramienta
+- [ ] En las fichas, la ayuda y la política de privacidad (*política hecha 2026-10-03*; fichas y ayuda, en 4.9): «Mirilla analiza la dirección, no la página. Ninguna herramienta
   puede garantizar que un sitio es seguro». Mencionar que el navegador (Safe Browsing) es una segunda red si se abre.
 - [ ] Política de privacidad actualizada: descarga periódica de la lista (qué se descarga, de dónde, qué no se envía) y
-  comprobaciones de «Investigar más».
+  comprobaciones de «Investigar más» (*hecho 2026-10-03* lo de «Investigar más», denunciar, sitios de confianza y
+  rastreadores; falta la lista, cuando exista).
 
 **Medir para no equivocarse** (datos solo en los tests, nunca en la extensión)
 - [x] **Falsos positivos** (*hecho 2026-10-03*: `npm run measure`, `tests/measure/`; 6 en Peligro, los revisados, y 13 en Precaución): las ~10.000 primeras webs de **Tranco**, descargadas al ejecutar el test (sus fuentes incluyen

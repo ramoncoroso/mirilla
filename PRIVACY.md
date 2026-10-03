@@ -2,7 +2,7 @@
 
 **English** · [Español](PRIVACY.es.md)
 
-_Last updated: 27 September 2026 (rev. 2)_
+_Last updated: 3 October 2026 (rev. 3)_
 
 Mirilla is a browser extension that reads QR codes and barcodes. It is built so that
 **no data ever leaves your device**.
@@ -14,7 +14,8 @@ Mirilla is a browser extension that reads QR codes and barcodes. It is built so 
   entirely inside your browser, using WebAssembly code bundled with the extension.
 - The only network request it makes on its own is re-downloading an image you right-click
   ("Read code from this image"), directly from the site that serves it and without cookies,
-  so it can be decoded locally.
+  so it can be decoded locally. Any other request (see "Checks that only happen when you ask")
+  only happens when you click a button.
 - It has no analytics, no ads, no tracking and no accounts.
 - It does not load remote code.
 
@@ -27,6 +28,14 @@ Mirilla is a browser extension that reads QR codes and barcodes. It is built so 
   it at any time from the popup; turning it off also deletes it. Uninstalling the extension
   deletes it too.
 - **Your history setting** (on/off), also in local storage.
+- **Your trusted sites**: the domains you add in the settings (for example, your bank's), so Mirilla
+  can tell you when a code leads to one of them or to an imitation.
+- **Your tracker-removal setting** (on by default): known tracking parameters (`utm_*`, `fbclid`…)
+  are removed from a link when you open or copy it.
+- **A copy of IANA's official list of domain registries**, if you use "Investigate further" (see
+  below), kept for a week so it is not downloaded on every check.
+- To tell you that "Mirilla has never read a link to this domain before", Mirilla compares against
+  its own history, on your device. It does not ask for access to your browser history.
 
 ## Permissions and why they are needed
 
@@ -39,6 +48,26 @@ Mirilla is a browser extension that reads QR codes and barcodes. It is built so 
 
 Mirilla does not request access to all websites. It only acts on the current tab, and only
 after you ask it to.
+
+## Checks that only happen when you ask
+
+- **"Investigate further"** (domain age): Mirilla asks the public domain registry (RDAP) when the
+  link's domain was registered. It first downloads IANA's official list of registries
+  (`data.iana.org`) and then asks that domain's registry directly (for example, Verisign for `.com`).
+  Only the domain name (`example.com`) is sent, never the full link, and without cookies. As with any
+  connection, that registry sees the IP address the request comes from. The linked page is never
+  visited.
+- **"Report"**: copies the link to the clipboard and opens Google Safe Browsing's report form so you
+  can paste it; in Spanish it also offers a ready-made email to INCIBE's incident mailbox. Nothing is
+  sent until you send it.
+
+## What Mirilla can and cannot know
+
+Mirilla checks a link's **address**, not the page: it does not visit it, so it does not know its
+content or reputation. No tool can guarantee that a site is safe, which is why Mirilla never says
+"safe": at most "no risk signals", together with the real domain so you can check it is the one you
+expected. If you open the link, your browser's own protection (such as Safe Browsing) is a second
+safety net.
 
 ## Opening links
 
