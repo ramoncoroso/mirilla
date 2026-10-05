@@ -17,10 +17,58 @@
             <select id="kind"></select>
           </label>
           <div id="fields"></div>
+          <details id="options" class="options">
+            <summary data-i18n="createOptions"></summary>
+            <div class="options-body">
+              <div class="row">
+                <label class="field">
+                  <span data-i18n="cfEcLevel"></span>
+                  <select id="ec">
+                    <option value="L" data-i18n="ecLevelL"></option>
+                    <option value="M" data-i18n="ecLevelM" selected></option>
+                    <option value="Q" data-i18n="ecLevelQ"></option>
+                    <option value="H" data-i18n="ecLevelH"></option>
+                  </select>
+                </label>
+                <label class="field">
+                  <span data-i18n="cfSize"></span>
+                  <input id="size" type="number" min="128" max="2048" step="8" value="512" />
+                </label>
+              </div>
+              <div class="row">
+                <label class="field">
+                  <span data-i18n="cfFg"></span>
+                  <input id="fg" type="color" value="#000000" />
+                </label>
+                <label class="field">
+                  <span data-i18n="cfBg"></span>
+                  <input id="bg" type="color" value="#ffffff" />
+                </label>
+              </div>
+              <p id="color-note" class="note" role="status" hidden></p>
+              <label class="field">
+                <span data-i18n="cfMargin"></span>
+                <input id="margin" type="number" min="0" max="10" step="1" value="4" />
+              </label>
+              <div class="logo">
+                <label class="qr-btn" tabindex="0" role="button">
+                  <input id="logo" type="file" accept="image/png,image/jpeg,image/webp" hidden /> <span data-i18n="cfLogo"></span>
+                </label>
+                <button id="logo-remove" class="qr-btn" type="button" data-i18n="removeLogo" hidden></button>
+              </div>
+              <label id="logo-size-field" class="field" hidden>
+                <span data-i18n="cfLogoSize"></span>
+                <input id="logo-size" type="range" min="10" max="30" step="1" value="22" />
+              </label>
+              <p id="logo-note" class="help" data-i18n="createLogoForcesH" hidden></p>
+              <p id="logo-error" class="error" role="alert" hidden></p>
+            </div>
+          </details>
         </form>
         <section class="preview">
           <div class="frame"><canvas id="qr" hidden></canvas></div>
           <p id="check" class="check" role="status" aria-live="polite"></p>
+          <p id="size-actual" class="help"></p>
           <div class="qr-actions">
             <button id="png" class="qr-btn qr-btn-primary" type="button" data-i18n="downloadPng" disabled></button>
             <button id="svg" class="qr-btn" type="button" data-i18n="downloadSvg" disabled></button>

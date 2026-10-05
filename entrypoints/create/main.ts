@@ -5,9 +5,9 @@
 import { browser } from 'wxt/browser';
 import { buildContent, type BuildError, type BuildInput, type BuildKind } from '@/lib/build';
 import { decodeImageData } from '@/lib/decode';
-import { encodeQr, QrTooLongError } from '@/lib/generate';
+import { encodeQr, QrTooLongError, type EcLevel } from '@/lib/generate';
 import { t } from '@/lib/i18n';
-import { buildSvg, drawToCanvas, pixelSize, type DrawOptions, type QrMatrix } from '@/lib/qr-draw';
+import { buildSvg, checkColors, DEFAULT_LOGO_RATIO, drawToCanvas, pixelSize, type DrawOptions, type QrMatrix } from '@/lib/qr-draw';
 import { el, RESULT_CSS, THEME_CSS, THEME_DARK_CSS } from '@/lib/render';
 import type { MessageKey } from '@/locales/messages';
 
@@ -29,6 +29,19 @@ const svgButton = $<HTMLButtonElement>('svg');
 const copyButton = $<HTMLButtonElement>('copy');
 const contentBox = $('content-box');
 const content = $('content');
+const sizeActual = $('size-actual');
+const ecSelect = $<HTMLSelectElement>('ec');
+const sizeInput = $<HTMLInputElement>('size');
+const fgInput = $<HTMLInputElement>('fg');
+const bgInput = $<HTMLInputElement>('bg');
+const marginInput = $<HTMLInputElement>('margin');
+const colorNote = $('color-note');
+const logoInput = $<HTMLInputElement>('logo');
+const logoRemove = $<HTMLButtonElement>('logo-remove');
+const logoSizeField = $('logo-size-field');
+const logoSize = $<HTMLInputElement>('logo-size');
+const logoNote = $('logo-note');
+const logoError = $('logo-error');
 
 // ---- Formularios ----
 
@@ -318,10 +331,34 @@ function showError(field: string | null, error: BuildError | null) {
 
 // ---- Código, comprobación y exportación ----
 
-const DRAW: DrawOptions = { scale: 10, margin: 4, fg: '#000000', bg: '#ffffff' };
+/** Logo ya redibujado por nosotros: en el canvas se usa `image`; en el SVG, `href` (un PNG nuestro en data:). */
+interface Logo {
+  image: HTMLCanvasElement;
+  href: string;
+  width: number;
+  height: number;
+}
+
+let logo: Logo | null = null;
+const MAX_LOGO_BYTES = 5 * 1024 * 1024;
+/** El logo se redibuja a este lado como mucho: basta para 2048 px y el SVG no crece sin necesidad. */
+const LOGO_SIDE = 512;
+
+const clamp = (n: number, min: number, max: number, fallback: number) => (Number.isFinite(n) ? Math.min(Math.max(Math.round(n), min), max) : fallback);
+
+/** Con logo, siempre H: es lo que deja leer el código aunque tape el centro. */
+const ecLevel = (): EcLevel => (logo ? 'H' : (ecSelect.value as EcLevel));
+
+function drawOptions(matrix: QrMatrix): DrawOptions {
+  const margin = clamp(Number(marginInput.value), 0, 10, 4);
+  const size = clamp(Number(sizeInput.value), 128, 2048, 512);
+  // Módulos de píxeles enteros (nítidos): el tamaño final se acerca al pedido sin pasarse de 2048.
+  const scale = Math.max(1, Math.min(Math.round(size / (matrix.size + 2 * margin)), Math.floor(2048 / (matrix.size + 2 * margin))));
+  return { scale, margin, fg: fgInput.value, bg: bgInput.value, logoRatio: logo ? clamp(Number(logoSize.value), 10, 30, 22) / 100 : 0 };
+}
 
 /** Lo último que se dibujó y se comprobó; las descargas usan esto, nunca un estado a medias. */
-let ready: { text: string; matrix: QrMatrix; png: Blob } | null = null;
+let ready: { text: string; matrix: QrMatrix; png: Blob; options: DrawOptions; logo: Logo | null } | null = null;
 /** Cada cambio invalida los anteriores que sigan en marcha. */
 let generation = 0;
 
@@ -342,6 +379,7 @@ function clearPreview(message: MessageKey, state: 'idle' | 'bad' = 'idle') {
   ready = null;
   canvas.hidden = true;
   contentBox.hidden = true;
+  sizeActual.textContent = '';
   setCheck(state, t(message));
 }
 
@@ -361,7 +399,7 @@ async function update() {
 
   let matrix: QrMatrix;
   try {
-    matrix = await encodeQr(text, 'M');
+    matrix = await encodeQr(text, ecLevel());
   } catch (e) {
     if (run !== generation) return;
     if (!(e instanceof QrTooLongError)) console.error(e);
@@ -370,12 +408,15 @@ async function update() {
   }
   if (run !== generation) return;
 
-  const side = pixelSize(matrix, DRAW);
+  const options = drawOptions(matrix);
+  const usedLogo = logo;
+  const side = pixelSize(matrix, options);
   canvas.width = side;
   canvas.height = side;
   const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
-  drawToCanvas(ctx, matrix, DRAW);
+  drawToCanvas(ctx, matrix, options, usedLogo?.image);
   canvas.hidden = false;
+  sizeActual.textContent = t('createSizeActual', side);
   content.textContent = text;
   contentBox.hidden = false;
   ready = null;
@@ -393,7 +434,7 @@ async function update() {
     setCheck('bad', t('generateError'));
     return;
   }
-  ready = { text, matrix, png };
+  ready = { text, matrix, png, options, logo: usedLogo };
   setCheck('ok', t('createVerified'));
 }
 
@@ -423,7 +464,7 @@ pngButton.addEventListener('click', () => {
 
 svgButton.addEventListener('click', () => {
   if (!ready) return;
-  const svg = buildSvg(document, ready.matrix, DRAW);
+  const svg = buildSvg(document, ready.matrix, ready.options, ready.logo ?? undefined);
   const xml = `<?xml version="1.0" encoding="UTF-8"?>\n${new XMLSerializer().serializeToString(svg)}`;
   download(new Blob([xml], { type: 'image/svg+xml' }), fileName('svg'));
 });
@@ -437,6 +478,93 @@ copyButton.addEventListener('click', async () => {
     copyButton.textContent = t('copyFailed');
   }
   setTimeout(() => (copyButton.textContent = t('copyImage')), 1400);
+});
+
+// ---- Opciones y logo ----
+
+function updateColorNote() {
+  const state = checkColors(fgInput.value, bgInput.value);
+  colorNote.hidden = state === 'ok' || state === 'invalid';
+  colorNote.textContent = state === 'inverted' ? t('colorInverted') : state === 'lowContrast' ? t('colorLowContrast') : '';
+}
+
+for (const input of [ecSelect, sizeInput, fgInput, bgInput, marginInput, logoSize]) {
+  input.addEventListener('input', () => {
+    updateColorNote();
+    void update();
+  });
+}
+
+/** Nivel elegido antes de poner el logo, para volver a él al quitarlo. */
+let ecBeforeLogo: string | null = null;
+
+function setLogo(next: Logo | null) {
+  // El selector muestra el nivel que se usa de verdad: con logo, la máxima (H).
+  if (next && !logo) {
+    ecBeforeLogo = ecSelect.value;
+    ecSelect.value = 'H';
+  } else if (!next && logo && ecBeforeLogo) {
+    ecSelect.value = ecBeforeLogo;
+    ecBeforeLogo = null;
+  }
+  logo = next;
+  logoRemove.hidden = !next;
+  logoSizeField.hidden = !next;
+  logoNote.hidden = !next;
+  ecSelect.disabled = !!next;
+  if (next) logoSize.value = String(Math.round(DEFAULT_LOGO_RATIO * 100));
+  void update();
+}
+
+function showLogoError(message: MessageKey | null) {
+  logoError.hidden = !message;
+  logoError.textContent = message ? t(message) : '';
+}
+
+// Solo PNG, JPG o WebP, mirando los primeros bytes (no la extensión ni el tipo que diga el sistema). Sin SVG:
+// un SVG es un documento con su propio código, y aquí solo hace falta una imagen.
+async function isRasterImage(file: File): Promise<boolean> {
+  const b = new Uint8Array(await file.slice(0, 12).arrayBuffer());
+  const png = b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47;
+  const jpeg = b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff;
+  const webp = String.fromCharCode(...b.slice(0, 4)) === 'RIFF' && String.fromCharCode(...b.slice(8, 12)) === 'WEBP';
+  return png || jpeg || webp;
+}
+
+async function loadLogo(file: File) {
+  showLogoError(null);
+  if (file.size > MAX_LOGO_BYTES) return showLogoError('logoTooLarge');
+  if (!(await isRasterImage(file))) return showLogoError('logoInvalid');
+  let bitmap: ImageBitmap;
+  try {
+    bitmap = await createImageBitmap(file);
+  } catch {
+    return showLogoError('logoInvalid');
+  }
+  // Se redibuja en un canvas nuestro: el SVG lleva este PNG, sin metadatos ni nada más del fichero original.
+  const fit = Math.min(1, LOGO_SIDE / Math.max(bitmap.width, bitmap.height));
+  const image = document.createElement('canvas');
+  image.width = Math.max(1, Math.round(bitmap.width * fit));
+  image.height = Math.max(1, Math.round(bitmap.height * fit));
+  image.getContext('2d')!.drawImage(bitmap, 0, 0, image.width, image.height);
+  bitmap.close();
+  setLogo({ image, href: image.toDataURL('image/png'), width: image.width, height: image.height });
+}
+
+logoInput.addEventListener('change', () => {
+  const chosen = logoInput.files?.[0];
+  logoInput.value = '';
+  if (chosen) void loadLogo(chosen);
+});
+logoInput.parentElement!.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' || e.key === ' ') {
+    e.preventDefault();
+    logoInput.click();
+  }
+});
+logoRemove.addEventListener('click', () => {
+  showLogoError(null);
+  setLogo(null);
 });
 
 // Los campos que llegan rellenos cuentan como tocados: si la URL del popup no vale, que se diga.

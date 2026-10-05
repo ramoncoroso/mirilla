@@ -2,10 +2,10 @@
 
 > Hoja de ruta del proyecto. Las casillas marcan lo hecho.
 
-**Fecha:** 2026-09-27
+**Fecha:** 2026-10-05
 **Estado:** Fases 1, 1.5 y 2 hechas; revisión de seguridad hecha; Fase 3 preparada (paquetes 1.0.0; falta la
-comprobación manual y subir a las tiendas; **se publicará todo junto al terminar la Fase 4**). **Siguiente: Fase 4**,
-empezando por 4.0 (sistema de avisos)
+comprobación manual y subir a las tiendas; **se publicará todo junto al terminar la Fase 4**). Fase 4: hitos 4.0 a 4.4 hechos.
+**Siguiente: 4.5** (historial completo)
 
 ## Posicionamiento
 
@@ -281,7 +281,7 @@ descarga periódicamente una lista completa y compara en el equipo, como Safe Br
   si se encuentran con licencia libre; si no, se deja anotado.
 - [x] Pruebas unitarias con ejemplos de las especificaciones y E2E en popup en/es.
 
-#### 4.4 Generador completo — tamaño L
+#### 4.4 Generador completo — tamaño L ✅ (2026-10-05)
 Decidido con el usuario (2026-10-05): **solo QR** (otros formatos, más adelante); el botón del popup **solo abre** el
 generador; logo en **PNG, JPG o WebP** (sin SVG). Tres vueltas: constructores y dibujo → página → opciones y logo.
 - [x] Vuelta 1 (2026-10-05): `lib/build.ts` (10 tipos, escapes y validación; URL solo http(s), sin USSD),
@@ -291,18 +291,21 @@ generador; logo en **PNG, JPG o WebP** (sin SVG). Tres vueltas: constructores y 
 - [x] Vuelta 2 (2026-10-05): página `create.html` (10 formularios, vista previa al momento, «Comprobado: se lee bien ✓»
   leyendo el canvas con el lector; PNG, SVG y copiar solo si se lee bien); el botón del popup abre el generador relleno.
   E2E en Chromium (todos los tipos, errores, demasiado largo, SVG sin texto del usuario, castellano) y Firefox.
-- [ ] Página `create.html` (en pestaña; el popup es pequeño), accesible desde el popup; el botón actual «QR de esta
+- [x] Vuelta 3 (2026-10-05): opciones (corrección L/M/Q/H, tamaño 128–2048 px en módulos enteros, colores con aviso de
+  invertido o poco contraste, margen) y logo PNG/JPG/WebP (bytes mágicos, 5 MB como mucho, redibujado a 512 px; fuerza H;
+  10–30 % del lado). Margen 0 y logo al 30 % se siguen leyendo en las pruebas.
+- [x] Página `create.html` (en pestaña; el popup es pequeño), accesible desde el popup; el botón actual «QR de esta
   página» abre el generador ya relleno con la URL.
-- [ ] Tipos: URL, texto, WiFi, contacto (vCard), email, teléfono, SMS, ubicación, evento y pago SEPA (EPC). Los
+- [x] Tipos: URL, texto, WiFi, contacto (vCard), email, teléfono, SMS, ubicación, evento y pago SEPA (EPC). Los
   constructores (`lib/build.ts`) escapan cada formato (`\;` `\:` en WiFi, vCard...) y tienen tests de ida y vuelta con
   `parseContent`.
-- [ ] Opciones: nivel de corrección L/M/Q/H, colores de primer plano y fondo (avisa si el contraste impide leerlo), margen,
+- [x] Opciones: nivel de corrección L/M/Q/H, colores de primer plano y fondo (avisa si el contraste impide leerlo), margen,
   tamaño y **logo** centrado (fuerza corrección H y limita el tamaño). El dibujo sale de la matriz del símbolo de zxing
   (`symbol`), no de su PNG, para poder aplicar colores y logo.
-- [ ] Exportar PNG y SVG (el SVG se construye con elementos y atributos, sin concatenar texto del usuario) y copiar imagen.
-- [ ] **«Comprobado: se lee bien ✓»**: cada código generado se vuelve a leer con el lector de Mirilla y se compara con lo
+- [x] Exportar PNG y SVG (el SVG se construye con elementos y atributos, sin concatenar texto del usuario) y copiar imagen.
+- [x] **«Comprobado: se lee bien ✓»**: cada código generado se vuelve a leer con el lector de Mirilla y se compara con lo
   esperado; si no coincide (logo demasiado grande, poco contraste...), se avisa y no se ofrece descargarlo como válido.
-- [ ] Pruebas: ida y vuelta de todos los tipos y opciones (incluidos colores y logo), en Chromium y Firefox.
+- [x] Pruebas: ida y vuelta de todos los tipos y opciones (incluidos colores y logo), en Chromium y Firefox.
 
 #### 4.5 Historial completo — tamaño M
 - [ ] Hasta 100 lecturas por defecto (ajustable), búsqueda, filtro por tipo, borrar lecturas sueltas y fijar favoritas.

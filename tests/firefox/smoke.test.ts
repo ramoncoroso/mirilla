@@ -397,6 +397,18 @@ describe('Firefox: generador (create.html)', () => {
     assert.equal(state.text, 'WIFI:T:WPA;S:Casa\\;1;P:clave123456;;');
     await bridge(driver, { op: 'closeTab', tabId });
   });
+
+  // No se puede subir un fichero de logo fácilmente (Firefox 157+ no deja tocar la pestaña moz-extension://,
+  // ver cabecera del fichero): en su lugar, se comprueba que el estado 'ok' se mantiene con un texto Unicode
+  // largo (tildes, emoji), que es lo que main.ts pasa tal cual al codificador y al lector.
+  test('type=text: se llega a "ok" con un texto Unicode largo (tildes y emoji)', async () => {
+    const text = 'ñandú 🙂 '.repeat(50);
+    const tabId = await bridge<number>(driver, { op: 'openCreate', query: `?type=text&text=${encodeURIComponent(text)}` });
+    await driver.wait(async () => (await bridge<{ state: string } | null>(driver, { op: 'getStorage', key: 'e2eCreateState' }))?.state === 'ok', 10000);
+    const state = await bridge<{ state: string; text: string | null }>(driver, { op: 'getStorage', key: 'e2eCreateState' });
+    assert.equal(state.text, text);
+    await bridge(driver, { op: 'closeTab', tabId });
+  });
 });
 
 describe('Firefox HiDPI (devPixelsPerPx 2)', () => {

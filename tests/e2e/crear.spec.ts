@@ -1,13 +1,18 @@
 // Fase 4 · 4.4 «Página»: el generador de create.html, un formulario por tipo de contenido con vista previa,
 // comprobación de lectura (se vuelve a leer el propio canvas) y descargas de PNG/SVG.
 
+import fs from 'node:fs';
 import type { BrowserContext, Download, Page, Worker } from '@playwright/test';
+import { prepareZXingModule, readBarcodes } from 'zxing-wasm/reader';
 import { expect, test } from './setup';
 
 declare const chrome: any;
 
 const VERIFIED_EN = 'Checked: it reads correctly ✓';
 const VERIFIED_ES = 'Comprobado: se lee bien ✓';
+const NOT_VERIFIED_EN = "It doesn't read back correctly, so it can't be downloaded. Change the colors or the logo.";
+/** Fin de la comprobación, se lea bien o no (nunca «Comprobando que se lee…»). */
+const SETTLED = /Checked: it reads correctly ✓|It doesn't read back correctly, so it can't be downloaded\. Change the colors or the logo\./;
 
 async function openCreate(context: BrowserContext, extId: string, query = ''): Promise<Page> {
   const page = await context.newPage();
@@ -20,11 +25,73 @@ async function createState(sw: Worker): Promise<{ state: string; text: string | 
   return sw.evaluate(async () => (await chrome.storage.local.get('e2eCreateState')).e2eCreateState ?? null);
 }
 
-async function readDownload(download: Download): Promise<string> {
+async function readDownloadBytes(download: Download): Promise<Buffer> {
   const stream = await download.createReadStream();
   const chunks: Buffer[] = [];
   for await (const chunk of stream!) chunks.push(chunk as Buffer);
-  return Buffer.concat(chunks).toString('utf8');
+  return Buffer.concat(chunks);
+}
+
+async function readDownload(download: Download): Promise<string> {
+  return (await readDownloadBytes(download)).toString('utf8');
+}
+
+/** Ancho y alto de un PNG mirando su cabecera IHDR (bytes 16-23), sin decodificar la imagen. */
+function pngSize(png: Buffer): { width: number; height: number } {
+  return { width: png.readUInt32BE(16), height: png.readUInt32BE(20) };
+}
+
+/** 'ok' o 'bad' según la clase que deja setCheck() en #check (nunca 'idle', una vez comprobado). */
+async function checkState(page: Page): Promise<string> {
+  const cls = (await page.locator('#check').getAttribute('class')) ?? '';
+  return cls.includes('bad') ? 'bad' : cls.includes('ok') ? 'ok' : 'idle';
+}
+
+/** Un píxel del canvas de la vista previa (RGBA). */
+async function canvasPixel(page: Page, x: number, y: number): Promise<number[]> {
+  return page.evaluate(
+    ({ x, y }) => {
+      const c = document.querySelector('#qr') as HTMLCanvasElement;
+      const ctx = c.getContext('2d')!;
+      return Array.from(ctx.getImageData(x, y, 1, 1).data);
+    },
+    { x, y },
+  );
+}
+
+/** Las opciones van en un <details> cerrado de inicio: hay que abrirlo antes de tocar nada de dentro. */
+async function openOptions(page: Page) {
+  const details = page.locator('#options');
+  if (!(await details.evaluate((d: HTMLDetailsElement) => d.open))) await details.locator('summary').click();
+}
+
+/** Pone un valor en un <input type=range> (no admite locator.fill, a diferencia de type=color). */
+async function setRange(page: Page, selector: string, value: string) {
+  await page.locator(selector).evaluate((el, value) => {
+    (el as HTMLInputElement).value = value;
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+  }, value);
+}
+
+/** Dibuja un círculo de color en un canvas y lo codifica como PNG/JPG/WebP: un logo mínimo generado aquí mismo. */
+async function makeLogo(page: Page, mime: string, color = '#c23b3b'): Promise<Buffer> {
+  const dataUrl = await page.evaluate(
+    ({ mime, color }) => {
+      const c = document.createElement('canvas');
+      c.width = 200;
+      c.height = 200;
+      const ctx = c.getContext('2d')!;
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, 200, 200);
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(100, 100, 80, 0, Math.PI * 2);
+      ctx.fill();
+      return c.toDataURL(mime);
+    },
+    { mime, color },
+  );
+  return Buffer.from(dataUrl.split(',')[1]!, 'base64');
 }
 
 interface KindCase {
@@ -276,5 +343,217 @@ test.describe('en castellano', () => {
     await page.locator('#kind').selectOption('tel');
     await page.locator('#f-number').fill('+34911222333');
     await expect(page.locator('#check')).toHaveText(VERIFIED_ES, { timeout: 10_000 });
+  });
+});
+
+test.describe('opciones y logo', () => {
+  // El lector de Mirilla (decodeImageData) no devuelve el nivel de corrección: para comprobarlo se lee el
+  // PNG descargado con el lector real de zxing-wasm desde Node (igual que tests/qr-draw.test.ts), que sí
+  // lo expone en ReadResult.ecLevel. readBarcodes acepta los bytes del PNG tal cual: no hace falta decodificarlo.
+  test.beforeAll(async () => {
+    await prepareZXingModule({
+      overrides: { wasmBinary: fs.readFileSync('node_modules/zxing-wasm/dist/reader/zxing_reader.wasm') },
+      fireImmediately: true,
+    });
+  });
+
+  for (const level of ['L', 'H'] as const) {
+    test(`nivel de corrección ${level}: el PNG descargado conserva ese nivel`, async ({ context, extId }) => {
+      const page = await openCreate(context, extId);
+      await openOptions(page);
+      await page.locator('#f-url').fill('https://ejemplo.test/correccion');
+      await page.locator('#ec').selectOption(level);
+      await expect(page.locator('#check')).toHaveText(VERIFIED_EN, { timeout: 10_000 });
+      const [download] = await Promise.all([page.waitForEvent('download'), page.locator('#png').click()]);
+      const png = await readDownloadBytes(download);
+      const [result] = await readBarcodes(png, { formats: ['QRCode'] });
+      expect(result?.ecLevel).toBe(level);
+    });
+  }
+
+  test('tamaño 1024: #size-actual y el PNG descargado miden lo mismo, entre 900 y 1100 px', async ({ context, extId }) => {
+    const page = await openCreate(context, extId);
+    await openOptions(page);
+    await page.locator('#f-url').fill('https://ejemplo.test/tamano');
+    await page.locator('#size').fill('1024');
+    await expect(page.locator('#check')).toHaveText(VERIFIED_EN, { timeout: 10_000 });
+    const text = await page.locator('#size-actual').textContent();
+    const n = Number(/(\d+)/.exec(text ?? '')?.[1]);
+    expect(n).toBeGreaterThan(900);
+    expect(n).toBeLessThan(1100);
+    const [download] = await Promise.all([page.waitForEvent('download'), page.locator('#png').click()]);
+    const { width, height } = pngSize(await readDownloadBytes(download));
+    expect(width).toBe(n);
+    expect(height).toBe(n);
+  });
+
+  test.describe('colores', () => {
+    test('fg/bg válidos y con buen contraste: se lee, sin aviso, y el lienzo usa esos colores', async ({ context, extId }) => {
+      const page = await openCreate(context, extId);
+      await openOptions(page);
+      await page.locator('#f-url').fill('https://ejemplo.test/colores-ok');
+      await page.locator('#fg').fill('#1a237e');
+      await page.locator('#bg').fill('#fff8e1');
+      await expect(page.locator('#check')).toHaveText(VERIFIED_EN, { timeout: 10_000 });
+      await expect(page.locator('#color-note')).toBeHidden();
+      // Esquina (0,0): siempre margen, así que es el fondo.
+      expect(await canvasPixel(page, 0, 0)).toEqual([0xff, 0xf8, 0xe1, 255]);
+      const hasFg = await page.evaluate(() => {
+        const c = document.querySelector('#qr') as HTMLCanvasElement;
+        const ctx = c.getContext('2d')!;
+        const data = ctx.getImageData(0, 0, c.width, c.height).data;
+        for (let i = 0; i < data.length; i += 4) if (data[i] === 0x1a && data[i + 1] === 0x23 && data[i + 2] === 0x7e) return true;
+        return false;
+      });
+      expect(hasFg).toBe(true);
+    });
+
+    test('fg claro sobre bg oscuro (invertidos): aviso de inversión y estado final (se lea o no)', async ({ context, extId }) => {
+      const page = await openCreate(context, extId);
+      await openOptions(page);
+      await page.locator('#f-url').fill('https://ejemplo.test/colores-invertidos');
+      await page.locator('#fg').fill('#ffffff');
+      await page.locator('#bg').fill('#000000');
+      await expect(page.locator('#color-note')).toBeVisible();
+      await expect(page.locator('#color-note')).toHaveText("The code is lighter than the background: many readers, especially phone cameras, can't read it.");
+      // Solo se comprueba que termina en un estado u otro, no cuál: un lector puede leer blanco sobre negro o no.
+      await expect(page.locator('#check')).toHaveText(SETTLED, { timeout: 10_000 });
+      expect(['ok', 'bad']).toContain(await checkState(page));
+    });
+
+    test('fg y bg con poco contraste: aviso de poco contraste', async ({ context, extId }) => {
+      const page = await openCreate(context, extId);
+      await openOptions(page);
+      await page.locator('#f-url').fill('https://ejemplo.test/colores-poco-contraste');
+      await page.locator('#fg').fill('#bbbbbb');
+      await page.locator('#bg').fill('#ffffff');
+      await expect(page.locator('#color-note')).toBeVisible();
+      await expect(page.locator('#color-note')).toHaveText('Little contrast between the code and the background: it may fail in poor light or on screens.');
+    });
+  });
+
+  test('margen 0: estado final (ok o bad); si es bad, los botones de descarga quedan deshabilitados', async ({ context, extId }) => {
+    const page = await openCreate(context, extId);
+    await openOptions(page);
+    await page.locator('#f-url').fill('https://ejemplo.test/margen-0');
+    await page.locator('#margin').fill('0');
+    await expect(page.locator('#check')).toHaveText(SETTLED, { timeout: 10_000 });
+    const state = await checkState(page);
+    // Comportamiento observado: sin margen (zona tranquila), zxing-wasm sigue leyendo el canvas igual
+    // (el margen solo afecta al aspecto, no a la detección en una imagen limpia), así que queda en 'ok'.
+    // Se deja también la rama 'bad' por si cambiara con otro contenido: los botones deben deshabilitarse.
+    if (state === 'bad') {
+      await expect(page.locator('#png')).toBeDisabled();
+      await expect(page.locator('#svg')).toBeDisabled();
+      await expect(page.locator('#copy')).toBeDisabled();
+    } else {
+      expect(state).toBe('ok');
+      await expect(page.locator('#png')).toBeEnabled();
+    }
+  });
+
+  test.describe('logo', () => {
+    test('subir un PNG: fuerza H, se lee, y el centro del lienzo tiene el color del logo (no solo blanco/negro)', async ({ context, extId }) => {
+      const page = await openCreate(context, extId);
+      await openOptions(page);
+      await page.locator('#f-url').fill('https://ejemplo.test/logo-png-para-que-el-qr-sea-grande-de-sobra');
+      await expect(page.locator('#check')).toHaveText(VERIFIED_EN, { timeout: 10_000 });
+      await page.setInputFiles('#logo', { name: 'logo.png', mimeType: 'image/png', buffer: await makeLogo(page, 'image/png') });
+      await expect(page.locator('#logo-note')).toBeVisible();
+      await expect(page.locator('#ec')).toBeDisabled();
+      await expect(page.locator('#ec')).toHaveValue('H');
+      await expect(page.locator('#check')).toHaveText(VERIFIED_EN, { timeout: 10_000 });
+
+      const side = await page.locator('#qr').evaluate((c: HTMLCanvasElement) => c.width);
+      const center = await canvasPixel(page, Math.floor(side / 2), Math.floor(side / 2));
+      expect(center.slice(0, 3)).not.toEqual([0, 0, 0]);
+      expect(center.slice(0, 3)).not.toEqual([255, 255, 255]);
+
+      // El SVG lleva el logo como <image> con un PNG en data: (nuestro, redibujado), nunca otro esquema.
+      const [download] = await Promise.all([page.waitForEvent('download'), page.locator('#svg').click()]);
+      const svg = await readDownload(download);
+      expect(svg).toContain('<image');
+      const hrefs = [...svg.matchAll(/href="([^"]*)"/g)].map((m) => m[1]!);
+      expect(hrefs.length).toBeGreaterThan(0);
+      for (const href of hrefs) expect(href.startsWith('data:image/png;base64,')).toBe(true);
+
+      // Tamaño de logo al máximo (30 %): comprobado, con este contenido y corrección H sigue leyéndose
+      // ('ok'). Se deja también la rama 'bad' por si cambiara con otro contenido: debe ser coherente
+      // (botones deshabilitados).
+      await setRange(page, '#logo-size', '30');
+      await expect(page.locator('#check')).toHaveText(SETTLED, { timeout: 10_000 });
+      const stateAt30 = await checkState(page);
+      if (stateAt30 === 'bad') {
+        await expect(page.locator('#png')).toBeDisabled();
+      } else {
+        expect(stateAt30).toBe('ok');
+        await expect(page.locator('#png')).toBeEnabled();
+      }
+
+      // Quitar el logo: #ec vuelve a habilitarse, la nota desaparece y el SVG ya no lleva <image>.
+      await page.locator('#logo-remove').click();
+      await expect(page.locator('#ec')).toBeEnabled();
+      await expect(page.locator('#ec')).toHaveValue('M');
+      await expect(page.locator('#logo-note')).toBeHidden();
+      await expect(page.locator('#check')).toHaveText(VERIFIED_EN, { timeout: 10_000 });
+      const [download2] = await Promise.all([page.waitForEvent('download'), page.locator('#svg').click()]);
+      const svg2 = await readDownload(download2);
+      expect(svg2).not.toContain('<image');
+    });
+
+    test('logo en JPG y en WebP: también se aceptan', async ({ context, extId }) => {
+      const page = await openCreate(context, extId);
+      await openOptions(page);
+      await page.locator('#f-url').fill('https://ejemplo.test/logo-formatos');
+      await expect(page.locator('#check')).toHaveText(VERIFIED_EN, { timeout: 10_000 });
+      for (const [mime, ext] of [['image/jpeg', 'jpg'], ['image/webp', 'webp']] as const) {
+        await page.setInputFiles('#logo', { name: `logo.${ext}`, mimeType: mime, buffer: await makeLogo(page, mime) });
+        await expect(page.locator('#logo-error')).toBeHidden();
+        await expect(page.locator('#logo-note')).toBeVisible();
+        await expect(page.locator('#check')).toHaveText(VERIFIED_EN, { timeout: 10_000 });
+        await page.locator('#logo-remove').click();
+        await expect(page.locator('#check')).toHaveText(VERIFIED_EN, { timeout: 10_000 });
+      }
+    });
+
+    test('rechazos: un SVG (aunque se llame .png y diga image/png), un texto cualquiera, y un fichero de más de 5 MB', async ({ context, extId }) => {
+      const page = await openCreate(context, extId);
+      await openOptions(page);
+      await page.locator('#f-url').fill('https://ejemplo.test/logo-rechazos');
+      await expect(page.locator('#check')).toHaveText(VERIFIED_EN, { timeout: 10_000 });
+
+      // Un SVG es un documento (con su propio código), no una imagen rasterizada: se mira la cabecera, no el
+      // nombre ni el tipo MIME que diga el navegador.
+      const svgDisguised = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"></svg>');
+      await page.setInputFiles('#logo', { name: 'logo.png', mimeType: 'image/png', buffer: svgDisguised });
+      await expect(page.locator('#logo-error')).toHaveText('That file is not a PNG, JPG or WebP image.');
+      await expect(page.locator('#logo-note')).toBeHidden();
+      await expect(page.locator('#ec')).toBeEnabled();
+
+      const plainText = Buffer.from('esto no es ninguna imagen, solo texto');
+      await page.setInputFiles('#logo', { name: 'logo.png', mimeType: 'image/png', buffer: plainText });
+      await expect(page.locator('#logo-error')).toHaveText('That file is not a PNG, JPG or WebP image.');
+      await expect(page.locator('#logo-note')).toBeHidden();
+
+      // Cabecera PNG válida pero de más de 5 MB: el tamaño se mira antes que los bytes mágicos.
+      const tooLarge = Buffer.alloc(5 * 1024 * 1024 + 1);
+      tooLarge.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a], 0);
+      await page.setInputFiles('#logo', { name: 'grande.png', mimeType: 'image/png', buffer: tooLarge });
+      await expect(page.locator('#logo-error')).toHaveText('The logo is too large (maximum 5 MB).');
+      await expect(page.locator('#logo-note')).toBeHidden();
+    });
+
+    test('captura de pantalla con logo y colores personalizados', async ({ context, extId }) => {
+      const page = await openCreate(context, extId);
+      await openOptions(page);
+      await page.locator('#f-url').fill('https://ejemplo.test/captura-logo');
+      await page.locator('#fg').fill('#1a237e');
+      await page.locator('#bg').fill('#fff8e1');
+      await expect(page.locator('#check')).toHaveText(VERIFIED_EN, { timeout: 10_000 });
+      await page.setInputFiles('#logo', { name: 'logo.png', mimeType: 'image/png', buffer: await makeLogo(page, 'image/png') });
+      await expect(page.locator('#check')).toHaveText(VERIFIED_EN, { timeout: 10_000 });
+      await page.setViewportSize({ width: 900, height: 700 });
+      await page.screenshot({ path: 'test-results/crear-logo.png' });
+    });
   });
 });
