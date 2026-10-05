@@ -282,6 +282,12 @@ descarga periódicamente una lista completa y compara en el equipo, como Safe Br
 - [x] Pruebas unitarias con ejemplos de las especificaciones y E2E en popup en/es.
 
 #### 4.4 Generador completo — tamaño L
+Decidido con el usuario (2026-10-05): **solo QR** (otros formatos, más adelante); el botón del popup **solo abre** el
+generador; logo en **PNG, JPG o WebP** (sin SVG). Tres vueltas: constructores y dibujo → página → opciones y logo.
+- [x] Vuelta 1 (2026-10-05): `lib/build.ts` (10 tipos, escapes y validación; URL solo http(s), sin USSD),
+  `lib/qr-draw.ts` (matriz → canvas, SVG por elementos y RGBA; hueco del logo; contraste WCAG) y `encodeQr` con la matriz.
+  Ida y vuelta real con zxing en Node (construir → codificar → dibujar → leer → interpretar). Corregidos en el lector:
+  `SMSTO:` con «?» en el mensaje y «;»/«\\n» escapados en vCard.
 - [ ] Página `create.html` (en pestaña; el popup es pequeño), accesible desde el popup; el botón actual «QR de esta
   página» abre el generador ya relleno con la URL.
 - [ ] Tipos: URL, texto, WiFi, contacto (vCard), email, teléfono, SMS, ubicación, evento y pago SEPA (EPC). Los
