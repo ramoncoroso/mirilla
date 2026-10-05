@@ -341,3 +341,10 @@ describe('isValidIban', () => {
     expect(isValidIban('ES91')).toBe(false);
   });
 });
+
+describe('vCard: componentes escapados', () => {
+  it('una barra escapada antes de «;» no escapa el separador', () => {
+    const p = parseContent('BEGIN:VCARD\nVERSION:3.0\nFN:Ana\nADR:;;Calle\\\\;Madrid;;;;\nEND:VCARD');
+    expect(p.kind === 'contact' && p.fields[0]?.value).toBe('Calle\\, Madrid');
+  });
+});

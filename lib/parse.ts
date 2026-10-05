@@ -258,15 +258,33 @@ function parseVCard(text: string): Parsed {
     const idx = line.indexOf(':');
     if (idx < 0) continue;
     const prop = (line.slice(0, idx).split(';')[0] ?? '').split('.').pop()!.toUpperCase();
-    const value = line.slice(idx + 1).replace(/\\n/gi, ' ').replace(/\\(.)/g, '$1');
+    // N y ADR llevan componentes separados por «;»: se separan antes de desescapar, para que un «\;» del texto
+    // no se confunda con un separador.
+    const raw = line.slice(idx + 1);
+    const parts = splitComponents(raw).map(unescapeVCard);
+    const value = unescapeVCard(raw);
     if (prop === 'FN') name = value;
-    else if (prop === 'N') structuredName = value.split(';').slice(0, 2).reverse().join(' ').trim();
+    else if (prop === 'N') structuredName = parts.slice(0, 2).reverse().join(' ').trim();
     else if (labels[prop]) {
-      const v = prop === 'ADR' ? value.split(';').filter(Boolean).join(', ') : value;
+      const v = prop === 'ADR' ? parts.filter(Boolean).join(', ') : value;
       if (v) fields.push({ label: labels[prop], value: v });
     }
   }
   return { kind: 'contact', name: name || structuredName, fields };
+}
+
+// Una sola pasada: «\n» es un salto de línea (se muestra como espacio) y «\\n», una barra seguida de «n».
+const unescapeVCard = (s: string) => s.replace(/\\(.)/g, (_, c: string) => (c === 'n' || c === 'N' ? ' ' : c));
+
+// Parte por los «;» que no están escapados (una barra escapada, «\\», no escapa el «;» siguiente).
+function splitComponents(s: string): string[] {
+  const parts = [''];
+  for (let i = 0; i < s.length; i++) {
+    if (s[i] === '\\' && i + 1 < s.length) parts[parts.length - 1] += s[i]! + s[++i]!;
+    else if (s[i] === ';') parts.push('');
+    else parts[parts.length - 1] += s[i]!;
+  }
+  return parts;
 }
 
 function parseMatMsg(text: string): Parsed {
@@ -293,7 +311,11 @@ function parseMailto(text: string): Parsed {
 
 function parseSms(text: string): Parsed {
   const rest = text.slice(text.indexOf(':') + 1);
-  // smsto:NUM:MENSAJE  |  sms:NUM?body=MENSAJE
+  // smsto:NUM:MENSAJE  |  sms:NUM?body=MENSAJE. En SMSTO el mensaje es libre: un "?" dentro no es una query.
+  if (/^smsto:/i.test(text)) {
+    const c = rest.indexOf(':');
+    if (c >= 0) return { kind: 'sms', number: rest.slice(0, c), body: rest.slice(c + 1) };
+  }
   const q = rest.indexOf('?');
   if (q >= 0) {
     return { kind: 'sms', number: rest.slice(0, q), body: queryParams(rest.slice(q + 1)).get('body') ?? '' };
