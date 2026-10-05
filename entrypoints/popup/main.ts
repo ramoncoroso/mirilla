@@ -131,60 +131,19 @@ $('scan').addEventListener('click', async () => {
   }
 });
 
-// ---- Generar el QR de la página actual ----
-
-/** URL temporal de la última imagen generada; se libera al generar otra o al cerrar el popup. */
-let generatedUrl: string | null = null;
+// ---- Generar un QR ----
 
 function clearResults() {
-  if (generatedUrl) URL.revokeObjectURL(generatedUrl);
-  generatedUrl = null;
   results.replaceChildren();
 }
 
+// El generador va en su propia pestaña; si la página tiene una dirección web, ya relleno con ella.
 $('generate').addEventListener('click', async () => {
-  clearResults();
   const url = (await activeTab())?.url;
-  if (!url || !/^https?:/.test(url)) {
-    setStatus(t('generateUnavailable'));
-    return;
-  }
-  setStatus(null);
-  try {
-    const { generateQr } = await import('@/lib/generate');
-    showGenerated(url, await generateQr(url));
-  } catch (e) {
-    console.error(e);
-    setStatus(t('generateError'));
-  }
+  const query = url && /^https?:/.test(url) ? `?${new URLSearchParams({ type: 'url', url })}` : '';
+  void browser.tabs.create({ url: browser.runtime.getURL(`/create.html${query}`) });
+  window.close();
 });
-
-function showGenerated(url: string, png: Blob) {
-  const src = URL.createObjectURL(png);
-  generatedUrl = src;
-  const card = el('article', 'qr-card generated');
-  const img = el('img') as HTMLImageElement;
-  img.src = src;
-  img.alt = url;
-  const download = el('a', 'qr-btn', t('downloadPng')) as HTMLAnchorElement;
-  download.href = src;
-  download.download = `qr-${new URL(url).hostname}.png`;
-  const copy = el('button', 'qr-btn', t('copyImage')) as HTMLButtonElement;
-  copy.type = 'button';
-  copy.addEventListener('click', async () => {
-    try {
-      await navigator.clipboard.write([new ClipboardItem({ 'image/png': png })]);
-      copy.textContent = t('copied');
-    } catch {
-      copy.textContent = t('copyFailed');
-    }
-    setTimeout(() => (copy.textContent = t('copyImage')), 1400);
-  });
-  const buttons = el('div', 'qr-actions');
-  buttons.append(download, copy);
-  card.append(img, el('p', 'qr-url', url), buttons);
-  results.append(card);
-}
 
 // ---- Imagen pegada, arrastrada o elegida ----
 
@@ -291,4 +250,3 @@ $('notice-ok').addEventListener('click', () => {
 });
 $('settings').addEventListener('click', () => void browser.runtime.openOptionsPage());
 
-window.addEventListener('pagehide', clearResults);

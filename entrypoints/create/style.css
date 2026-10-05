@@ -1,0 +1,37 @@
+* { box-sizing: border-box; }
+body {
+  margin: 0; font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+  background: var(--qr-bg); color: var(--qr-fg);
+}
+main { max-width: 900px; margin: 0 auto; padding: 24px 16px; display: flex; flex-direction: column; gap: 16px; }
+h1 { font-size: 20px; margin: 0; }
+.layout { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 24px; align-items: start; }
+@media (max-width: 700px) { .layout { grid-template-columns: minmax(0, 1fr); } }
+form, #fields { display: flex; flex-direction: column; gap: 10px; }
+.field { display: flex; flex-direction: column; gap: 3px; }
+.field > span { font-weight: 600; font-size: 13px; }
+.check-field { flex-direction: row; align-items: center; gap: 8px; }
+.check-field > span { font-weight: normal; }
+.row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+input, select, textarea {
+  font: inherit; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--qr-border);
+  background: var(--qr-bg); color: var(--qr-fg); width: 100%;
+}
+input[type="checkbox"] { width: auto; }
+textarea { min-height: 90px; resize: vertical; }
+[aria-invalid="true"] { border-color: var(--qr-danger-fg); }
+.error { color: var(--qr-danger-fg); font-size: 12px; margin: 0; }
+.note { color: var(--qr-warn-fg); font-size: 12px; margin: 0; }
+.preview { position: sticky; top: 16px; display: flex; flex-direction: column; gap: 8px; }
+.frame {
+  aspect-ratio: 1; border: 1px solid var(--qr-border); border-radius: 10px; background: var(--qr-card);
+  display: flex; align-items: center; justify-content: center; overflow: hidden;
+}
+canvas { width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; }
+.check { margin: 0; font-weight: 600; min-height: 1.5em; }
+.check.ok { color: var(--qr-ok-fg); }
+.check.bad { color: var(--qr-danger-fg); }
+.check.idle { color: var(--qr-muted); font-weight: normal; }
+.qr-btn:disabled { opacity: .5; cursor: not-allowed; }
+#content { white-space: pre-wrap; word-break: break-all; font: 12px/1.4 ui-monospace, monospace; margin: 6px 0 0; max-height: 200px; overflow: auto; }
+.help { color: var(--qr-muted); margin: 0; }
