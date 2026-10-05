@@ -29,7 +29,4 @@ summary { cursor: pointer; color: var(--qr-muted); font-weight: 600; }
 .history-empty { color: var(--qr-muted); padding: 4px; }
 .history-foot { display: flex; justify-content: space-between; align-items: center; color: var(--qr-muted); }
 .linkish { font: inherit; background: none; border: 0; color: var(--qr-accent); cursor: pointer; padding: 0; }
-.generated { display: flex; flex-direction: column; align-items: center; gap: 8px; }
-.generated img { width: 200px; height: 200px; image-rendering: pixelated; background: #fff; border-radius: 6px; }
-.generated .qr-url { text-align: center; }
 footer { padding: 8px 12px; font-size: 11px; color: var(--qr-muted); border-top: 1px solid var(--qr-border); }

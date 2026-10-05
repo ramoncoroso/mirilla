@@ -85,31 +85,46 @@ test.describe('generar el QR de la página actual', () => {
 
     const popup = await context.newPage();
     await popup.goto(`chrome-extension://${extId}/popup.html?tab=${tabId}`);
-    await popup.getByRole('button', { name: 'QR code of this page' }).click();
-    const img = popup.locator('.generated img');
-    await expect(img).toBeVisible();
-    await expect(popup.locator('.generated .qr-url')).toHaveText('http://pruebas.test/producto?id=42');
-    await expect(popup.getByRole('link', { name: 'Download PNG' })).toHaveAttribute('download', 'qr-pruebas.test.png');
-    await popup.setViewportSize({ width: 360, height: 560 });
-    await popup.screenshot({ path: 'test-results/generar.png' });
+    // El botón abre una pestaña nueva con create.html, ya relleno con la URL de la página (el popup se cierra).
+    const [created] = await Promise.all([context.waitForEvent('page'), popup.getByRole('button', { name: 'QR code of this page' }).click()]);
+    await created.waitForLoadState();
+    const expectedUrl = `chrome-extension://${extId}/create.html?${new URLSearchParams({ type: 'url', url: 'http://pruebas.test/producto?id=42' })}`;
+    await expect(created).toHaveURL(expectedUrl);
+    // Decodificando la query se ve el mismo resultado, con independencia de cómo se haya codificado.
+    const query = new URL(created.url()).searchParams;
+    expect(query.get('type')).toBe('url');
+    expect(query.get('url')).toBe('http://pruebas.test/producto?id=42');
 
-    // Se lee el PNG generado con el propio lector de Mirilla.
-    const png = await img.evaluate(async (node: HTMLImageElement) => {
-      const bytes = new Uint8Array(await (await fetch(node.src)).arrayBuffer());
-      return Array.from(bytes);
-    });
-    await popup.setInputFiles('#file', { name: 'generado.png', mimeType: 'image/png', buffer: Buffer.from(png) });
-    await expect(popup.locator('.qr-card .qr-url')).toHaveText('http://pruebas.test/producto?id=42');
+    await expect(created.locator('#f-url')).toHaveValue('http://pruebas.test/producto?id=42');
+    await expect(created.locator('#check')).toHaveText('Checked: it reads correctly ✓', { timeout: 10_000 });
+    await created.setViewportSize({ width: 900, height: 700 });
+    await created.screenshot({ path: 'test-results/generar.png' });
+
+    const [download] = await Promise.all([created.waitForEvent('download'), created.locator('#png').click()]);
+    expect(download.suggestedFilename()).toBe('qr-pruebas.test.png');
+
+    // Se lee el PNG descargado con el propio lector de Mirilla.
+    const stream = await download.createReadStream();
+    const chunks: Buffer[] = [];
+    for await (const chunk of stream!) chunks.push(chunk as Buffer);
+    const reader = await context.newPage();
+    await reader.goto(`chrome-extension://${extId}/popup.html`);
+    await reader.setInputFiles('#file', { name: 'generado.png', mimeType: 'image/png', buffer: Buffer.concat(chunks) });
+    await expect(reader.locator('.qr-card .qr-url')).toHaveText('http://pruebas.test/producto?id=42');
   });
 
-  test('en una página interna del navegador explica que no hay dirección que convertir', async ({ context, extId, sw }) => {
+  test('en una página interna del navegador abre el generador vacío, sin dirección que convertir', async ({ context, extId, sw }) => {
     const page = await context.newPage();
     await page.goto('chrome://version');
     await page.bringToFront();
     const tabId = await sw.evaluate(async () => (await (globalThis as any).chrome.tabs.query({ active: true, lastFocusedWindow: true }))[0].id);
     const popup = await context.newPage();
     await popup.goto(`chrome-extension://${extId}/popup.html?tab=${tabId}`);
-    await popup.getByRole('button', { name: 'QR code of this page' }).click();
-    await expect(popup.locator('#status')).toHaveText('This page has no web address to turn into a QR code.');
+    const [created] = await Promise.all([context.waitForEvent('page'), popup.getByRole('button', { name: 'QR code of this page' }).click()]);
+    await created.waitForLoadState();
+    // Sin dirección web en la pestaña activa, se abre sin query: el generador se queda en «Web address» vacío.
+    await expect(created).toHaveURL(`chrome-extension://${extId}/create.html`);
+    await expect(created.locator('#kind')).toHaveValue('url');
+    await expect(created.locator('#f-url')).toHaveValue('');
   });
 });

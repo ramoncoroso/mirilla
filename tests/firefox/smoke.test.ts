@@ -371,6 +371,34 @@ describe('Firefox: página de escaneo con cámara falsa', () => {
   });
 });
 
+describe('Firefox: generador (create.html)', () => {
+  let driver: WebDriver;
+  before(async () => {
+    driver = await launch();
+  });
+  after(async () => driver?.quit());
+  beforeEach(async () => {
+    await reset(driver);
+    await bridge(driver, { op: 'clear' });
+  });
+
+  test('type=url: se comprueba y el texto coincide con la URL de la query', async () => {
+    const tabId = await bridge<number>(driver, { op: 'openCreate', query: '?type=url&url=https://example.org/a?b=1' });
+    await driver.wait(async () => (await bridge<{ state: string } | null>(driver, { op: 'getStorage', key: 'e2eCreateState' }))?.state === 'ok', 10000);
+    const state = await bridge<{ state: string; text: string | null }>(driver, { op: 'getStorage', key: 'e2eCreateState' });
+    assert.equal(state.text, 'https://example.org/a?b=1');
+    await bridge(driver, { op: 'closeTab', tabId });
+  });
+
+  test('type=wifi: SSID con punto y coma escapado y contraseña', async () => {
+    const tabId = await bridge<number>(driver, { op: 'openCreate', query: '?type=wifi&ssid=Casa;1&password=clave123456&security=WPA' });
+    await driver.wait(async () => (await bridge<{ state: string } | null>(driver, { op: 'getStorage', key: 'e2eCreateState' }))?.state === 'ok', 10000);
+    const state = await bridge<{ state: string; text: string | null }>(driver, { op: 'getStorage', key: 'e2eCreateState' });
+    assert.equal(state.text, 'WIFI:T:WPA;S:Casa\\;1;P:clave123456;;');
+    await bridge(driver, { op: 'closeTab', tabId });
+  });
+});
+
 describe('Firefox HiDPI (devPixelsPerPx 2)', () => {
   let driver: WebDriver;
   before(async () => {

@@ -11,6 +11,7 @@ export type Command =
   | { op: 'setStorage'; items: Record<string, unknown> }
   | { op: 'getStorage'; key: string }
   | { op: 'openScan'; mode: string }
+  | { op: 'openCreate'; query: string }
   | { op: 'closeTab'; tabId: number }
   | { op: 'pdf'; url: string }
   | { op: 'tabIdByUrl'; url: string }
@@ -48,6 +49,9 @@ export async function run(cmd: Command, api: TestApi): Promise<unknown> {
       return browser.tabs.remove(cmd.tabId);
     case 'openScan':
       return (await browser.tabs.create({ url: browser.runtime.getURL(`/scan.html?mode=${cmd.mode}`) })).id;
+    case 'openCreate':
+      // Igual que openScan, pero para el generador (create.html): el test manda la query tal cual (p.ej. "?type=wifi&...").
+      return (await browser.tabs.create({ url: browser.runtime.getURL(`/create.html${cmd.query}`) })).id;
     case 'tabIdByUrl':
       // Los patrones de tabs.query no admiten puertos: se compara la URL exacta.
       return (await browser.tabs.query({})).find((t) => t.url === cmd.url)?.id;

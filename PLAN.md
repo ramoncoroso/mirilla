@@ -288,6 +288,9 @@ generador; logo en **PNG, JPG o WebP** (sin SVG). Tres vueltas: constructores y 
   `lib/qr-draw.ts` (matriz → canvas, SVG por elementos y RGBA; hueco del logo; contraste WCAG) y `encodeQr` con la matriz.
   Ida y vuelta real con zxing en Node (construir → codificar → dibujar → leer → interpretar). Corregidos en el lector:
   `SMSTO:` con «?» en el mensaje y «;»/«\\n» escapados en vCard.
+- [x] Vuelta 2 (2026-10-05): página `create.html` (10 formularios, vista previa al momento, «Comprobado: se lee bien ✓»
+  leyendo el canvas con el lector; PNG, SVG y copiar solo si se lee bien); el botón del popup abre el generador relleno.
+  E2E en Chromium (todos los tipos, errores, demasiado largo, SVG sin texto del usuario, castellano) y Firefox.
 - [ ] Página `create.html` (en pestaña; el popup es pequeño), accesible desde el popup; el botón actual «QR de esta
   página» abre el generador ya relleno con la URL.
 - [ ] Tipos: URL, texto, WiFi, contacto (vCard), email, teléfono, SMS, ubicación, evento y pago SEPA (EPC). Los

@@ -1,0 +1,39 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mirilla</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <!-- Los textos se rellenan desde _locales con data-i18n (ver main.ts). -->
+    <main>
+      <h1 data-i18n="createTitle"></h1>
+      <div class="layout">
+        <form id="form" novalidate>
+          <label class="field">
+            <span data-i18n="createType"></span>
+            <select id="kind"></select>
+          </label>
+          <div id="fields"></div>
+        </form>
+        <section class="preview">
+          <div class="frame"><canvas id="qr" hidden></canvas></div>
+          <p id="check" class="check" role="status" aria-live="polite"></p>
+          <div class="qr-actions">
+            <button id="png" class="qr-btn qr-btn-primary" type="button" data-i18n="downloadPng" disabled></button>
+            <button id="svg" class="qr-btn" type="button" data-i18n="downloadSvg" disabled></button>
+            <button id="copy" class="qr-btn" type="button" data-i18n="copyImage" disabled></button>
+          </div>
+          <details id="content-box" hidden>
+            <summary data-i18n="createContent"></summary>
+            <pre id="content"></pre>
+          </details>
+        </section>
+      </div>
+      <p class="help" data-i18n="createPrivacy"></p>
+    </main>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>
